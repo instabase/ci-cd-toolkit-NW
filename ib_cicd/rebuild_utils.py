@@ -64,7 +64,7 @@ def get_settings(project_id, token, host_url, proxies=None):
     """
 
     get_ocr_url = (
-        f"{host_url}/api/v2/aihub/build/projects?proj_id={project_id}&query_option=uuid"
+        f"{host_url}/api/v2/aihub/build/projects?proj_ids={project_id}&query_option=uuid"
     )
     headers = with_instabase_certificate({"Authorization": f"Bearer {token}"})
     response = requests.get(url=get_ocr_url, headers=headers, proxies=proxies)

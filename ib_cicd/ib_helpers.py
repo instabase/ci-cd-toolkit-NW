@@ -885,7 +885,7 @@ def get_published_app_id(ib_host, api_token, project_id, proxies=None):
         str: The app_id of the published build app
     """
     url = (
-        f"{ib_host}/api/v2/aihub/build/projects?proj_id={project_id}&query_option=uuid"
+        f"{ib_host}/api/v2/aihub/build/projects?proj_ids={project_id}&query_option=uuid"
     )
     headers = with_instabase_certificate({"Authorization": f"Bearer {api_token}"})
 
