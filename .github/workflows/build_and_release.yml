@@ -79,30 +79,27 @@ jobs:
       - name: Publish GitHub Release
         # Publish a GitHub release with the built .whl
         # using the version tag from pyproject.toml
-        uses: ncipollo/release-action@v1
+        uses: softprops/action-gh-release@v2
         env:
           PYTHON_PKG_VERSION: ${{ steps.python-package-version.outputs.PYTHON_PKG_VERSION }}
           PYTHON_PKG_PATH: ${{ steps.python-package-path.outputs.PYTHON_PKG_PATH }}
         with:
-          tag: ${{ env.PYTHON_PKG_VERSION }}
-          artifacts: ${{ env.PYTHON_PKG_PATH }}
-          artifactErrorsFailBuild: true
-          generateReleaseNotes: true
-          makeLatest: true
-          allowUpdates: true
+          tag_name: ${{ env.PYTHON_PKG_VERSION }}
+          files: ${{ env.PYTHON_PKG_PATH }}
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+          make_latest: true
 
       - name: Publish Release to Secondary Repo
-      # Publish a release to the secondary repository
-        uses: ncipollo/release-action@v1
+        # Publish a release to the secondary repository
+        uses: softprops/action-gh-release@v2
         env:
           PYTHON_PKG_VERSION: ${{ steps.python-package-version.outputs.PYTHON_PKG_VERSION }}
           PYTHON_PKG_PATH: ${{ steps.python-package-path.outputs.PYTHON_PKG_PATH }}
         with:
-          owner: samyak-ib
-          repo: ci-cd-test
+          repository: samyak-ib/ci-cd-test
           token: ${{ secrets.SAMYAK_JAIN_PERSONAL_ACCESS_TOKEN }}
-          tag: ${{ env.PYTHON_PKG_VERSION }}
-          artifacts: ${{ env.PYTHON_PKG_PATH }}
-          allowUpdates: true
-          artifactErrorsFailBuild: false
-          makeLatest: true
+          tag_name: ${{ env.PYTHON_PKG_VERSION }}
+          files: ${{ env.PYTHON_PKG_PATH }}
+          fail_on_unmatched_files: false
+          make_latest: true
