@@ -4,16 +4,13 @@ import time
 from uuid import uuid4
 import copy
 
-from ib_cicd.certificates import with_instabase_certificate
+from ib_cicd.certificates import get_cert
 
 
 def create_build_project(project_name, token, target_url, org, workspace, proxies=None):
     """Creates a build project in the target environment"""
     url = f"{target_url}/api/v2/aihub/build/projects"
-    headers = with_instabase_certificate(
-        {"Authorization": f"Bearer {token}", "Ib-Context": org},
-        source=False
-    )
+    headers = {"Authorization": f"Bearer {token}", "Ib-Context": org}
     current_unix_timestamp = int(time.time())
     data = {
         "name": project_name,
@@ -36,7 +33,8 @@ def create_build_project(project_name, token, target_url, org, workspace, proxie
         "creation_base": "NONE",
     }
 
-    response = requests.post(url=url, headers=headers, json=data, proxies=proxies)
+    response = requests.post(url=url, headers=headers, json=data, proxies=proxies,
+                             cert=get_cert(source=False))
     response.raise_for_status()
     return response.json()
 
@@ -66,8 +64,9 @@ def get_settings(project_id, token, host_url, proxies=None):
     get_ocr_url = (
         f"{host_url}/api/v2/aihub/build/projects?proj_ids={project_id}&query_option=uuid"
     )
-    headers = with_instabase_certificate({"Authorization": f"Bearer {token}"})
-    response = requests.get(url=get_ocr_url, headers=headers, proxies=proxies)
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get(url=get_ocr_url, headers=headers, proxies=proxies,
+                           cert=get_cert(source=True))
     response.raise_for_status()  # This will raise an error
     return response.json()
 
@@ -84,9 +83,10 @@ def post_settings(project_id, token, host_url, data, proxies=None):
             status response
     """
     get_ocr_url = f"{host_url}/api/v2/aihub/build/projects?project_id={project_id}"
-    headers = with_instabase_certificate({"Authorization": f"Bearer {token}"})
+    headers = {"Authorization": f"Bearer {token}"}
     response = requests.patch(
-        url=get_ocr_url, headers=headers, data=data, proxies=proxies
+        url=get_ocr_url, headers=headers, data=data, proxies=proxies,
+        cert=get_cert(source=False),
     )
     response.raise_for_status()  # This will raise an error
     return response.text
@@ -117,8 +117,9 @@ def get_udfs(project_id, token, host_url, proxies=None):
     """
 
     get_udfs_url = f"{host_url}/api/v2/aihub/build/projects/{project_id}/udfs"
-    headers = with_instabase_certificate({"Authorization": f"Bearer {token}"})
-    response = requests.get(url=get_udfs_url, headers=headers, proxies=proxies)
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get(url=get_udfs_url, headers=headers, proxies=proxies,
+                           cert=get_cert(source=True))
     response.raise_for_status()  # This will raise an error
     return response.json()
 
@@ -135,9 +136,10 @@ def post_udf(project_id, token, target_url, data, proxies=None):
             json response
     """
     post_udfs_url = f"{target_url}/api/v2/aihub/build/projects/{project_id}/udfs"
-    headers = with_instabase_certificate({"Authorization": f"Bearer {token}"})
+    headers = {"Authorization": f"Bearer {token}"}
     response = requests.post(
-        url=post_udfs_url, headers=headers, json=data, proxies=proxies
+        url=post_udfs_url, headers=headers, json=data, proxies=proxies,
+        cert=get_cert(source=False),
     )
     response.raise_for_status()
     return response.json()
@@ -191,8 +193,9 @@ def get_schema(project_id, token, host_url, proxies=None):
     """
 
     get_schema_url = f"{host_url}/api/v2/aihub/build/projects/{project_id}/schema"
-    headers = with_instabase_certificate({"Authorization": f"Bearer {token}"})
-    response = requests.get(url=get_schema_url, headers=headers, proxies=proxies)
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get(url=get_schema_url, headers=headers, proxies=proxies,
+                           cert=get_cert(source=True))
     response.raise_for_status()  # This will raise an error
     return response.json()
 
@@ -209,9 +212,10 @@ def post_schema(project_id, token, target_url, data, proxies=None):
             json response
     """
     post_schema_url = f"{target_url}/api/v2/aihub/build/projects/{project_id}/schema"
-    headers = with_instabase_certificate({"Authorization": f"Bearer {token}"})
+    headers = {"Authorization": f"Bearer {token}"}
     response = requests.post(
-        url=post_schema_url, headers=headers, json=data, proxies=proxies
+        url=post_schema_url, headers=headers, json=data, proxies=proxies,
+        cert=get_cert(source=False),
     )
     response.raise_for_status()
     return response.json()
@@ -230,14 +234,16 @@ def get_item_ids(schema):
 def run_prompt_udf(project_id, token, target_url, validation_id, proxies=None):
     """Generates code for a prompt UDF"""
     url = f"{target_url}/api/v2/aihub/build/projects/{project_id}/validations/{validation_id}/examples"
-    headers = with_instabase_certificate({"Authorization": f"Bearer {token}"})
-    response = requests.put(url=url, headers=headers, proxies=proxies)
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.put(url=url, headers=headers, proxies=proxies,
+                           cert=get_cert(source=False))
     response.raise_for_status()
     time.sleep(10)
 
     url = f"{target_url}/api/v2/aihub/build/projects/{project_id}/validations/{validation_id}/code-generation"
-    headers = with_instabase_certificate({"Authorization": f"Bearer {token}"})
-    response = requests.put(url=url, headers=headers, proxies=proxies)
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.put(url=url, headers=headers, proxies=proxies,
+                           cert=get_cert(source=False))
     response.raise_for_status()
     time.sleep(10)
     return response.json()
@@ -369,8 +375,9 @@ def get_validations(project_id, token, host_url, proxies=None):
     get_validations_url = (
         f"{host_url}/api/v2/aihub/build/projects/{project_id}/validations"
     )
-    headers = with_instabase_certificate({"Authorization": f"Bearer {token}"})
-    response = requests.get(url=get_validations_url, headers=headers, proxies=proxies)
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.get(url=get_validations_url, headers=headers, proxies=proxies,
+                           cert=get_cert(source=True))
     response.raise_for_status()  # This will raise an error
     return response.json()
 
@@ -387,9 +394,10 @@ def post_validations(project_id, token, target_url, data, proxies=None):
             json response
     """
     post_udfs_url = f"{target_url}/api/v2/aihub/build/projects/{project_id}/validations"
-    headers = with_instabase_certificate({"Authorization": f"Bearer {token}"})
+    headers = {"Authorization": f"Bearer {token}"}
     response = requests.post(
-        url=post_udfs_url, headers=headers, json=data, proxies=proxies
+        url=post_udfs_url, headers=headers, json=data, proxies=proxies,
+        cert=get_cert(source=False),
     )
     response.raise_for_status()
     return response.json()
@@ -402,8 +410,9 @@ def delete_validations(project_id, token, target_url, id, proxies=None):
     delete_url = (
         f"{target_url}/api/v2/aihub/build/projects/{project_id}/validations?id={id}"
     )
-    headers = with_instabase_certificate({"Authorization": f"Bearer {token}"})
-    response = requests.delete(url=delete_url, headers=headers, proxies=proxies)
+    headers = {"Authorization": f"Bearer {token}"}
+    response = requests.delete(url=delete_url, headers=headers, proxies=proxies,
+                              cert=get_cert(source=False))
     response.raise_for_status()
     return response
 
@@ -519,7 +528,8 @@ def modify_validations(
 
             headers = {"Authorization": f"Bearer {token}"}
             examples_url = f"{target_url}/api/v2/aihub/build/projects/{project_id}/validations/{new_id}/examples"
-            resp = requests.put(examples_url, headers=headers, proxies=proxies)
+            resp = requests.put(examples_url, headers=headers, proxies=proxies,
+                               cert=get_cert(source=False))
             print(f"Run Examples {new_id}: {resp.text}")
 
             payload["params"]["udf_id"] = int(new_id)

@@ -1,84 +1,86 @@
-import base64
 import os
 from functools import lru_cache
-from typing import Dict, Optional
+from typing import Optional, Tuple, Union
 
 
-CERTIFICATE_HEADER_NAME = "IB-Certificate"
-CERTIFICATE_ENV_VAR = "IB_CLIENT_CERT_PATH"
-_DEFAULT_CERTIFICATE_PATH = os.path.join(
-    os.path.dirname(__file__), "assets", "instabase_client_cert.pem"
-)
-
-CERTIFICATE_ENV_VAR_SOURCE = "MTLS_SOURCE_CERTIFICATE"
-CERTIFICATE_ENV_VAR_TARGET = "MTLS_TARGET_CERTIFICATE"
+# Environment variables for mTLS cert file paths (used with requests cert parameter)
+MTLS_SOURCE_CERT_ENV = "MTLS_SOURCE_CERT"
+MTLS_SOURCE_KEY_ENV = "MTLS_SOURCE_KEY"
+MTLS_TARGET_CERT_ENV = "MTLS_TARGET_CERT"
+MTLS_TARGET_KEY_ENV = "MTLS_TARGET_KEY"
 
 
-@lru_cache(maxsize=1)
-def load_instabase_certificate() -> Optional[str]:
-    """Return the base64 encoded certificate string if available."""
-
-    cert_data = os.environ.get('MTLS_CERTIFICATE')
-    if cert_data:
-        return cert_data
-
-    cert_path = os.environ.get(CERTIFICATE_ENV_VAR, _DEFAULT_CERTIFICATE_PATH)
-    try:
-        with open(cert_path, "rb") as cert_file:
-            raw_data = cert_file.read().strip()
-    except OSError:
-        return None
-
-    if not raw_data:
-        return None
-
-    return base64.b64encode(raw_data).decode("ascii")
+CertType = Optional[Union[str, Tuple[str, str]]]
 
 
 @lru_cache(maxsize=1)
-def load_source_certificate() -> Optional[str]:
-    cert_data = os.environ.get('MTLS_SOURCE_CERTIFICATE')
-    if cert_data:
-        return cert_data
-    cert_path = os.environ.get(CERTIFICATE_ENV_VAR_SOURCE, _DEFAULT_CERTIFICATE_PATH)
-    try:
-        with open(cert_path, "rb") as cert_file:
-            raw_data = cert_file.read().strip()
-    except OSError:
+def get_source_cert() -> CertType:
+    """
+    Get the source mTLS certificate for requests.
+    
+    Returns the cert parameter to be used with requests library.
+    Can be either a single PEM file path (containing both cert and key)
+    or a tuple of (cert_path, key_path).
+    
+    Environment variables:
+        MTLS_SOURCE_CERT: Path to the source certificate PEM file
+        MTLS_SOURCE_KEY: Path to the source key PEM file (optional if key is in cert file)
+    
+    Returns:
+        None if no cert configured, str if single file, tuple if separate cert/key files
+    """
+    cert_path = os.environ.get(MTLS_SOURCE_CERT_ENV)
+    if not cert_path:
         return None
-    if not raw_data:
-        return None
-    return base64.b64encode(raw_data).decode("ascii")
+    
+    key_path = os.environ.get(MTLS_SOURCE_KEY_ENV)
+    if key_path:
+        return (cert_path, key_path)
+    
+    return cert_path
 
 
 @lru_cache(maxsize=1)
-def load_target_certificate() -> Optional[str]:
-    cert_data = os.environ.get('MTLS_TARGET_CERTIFICATE')
-    if cert_data:
-        return cert_data
-    cert_path = os.environ.get(CERTIFICATE_ENV_VAR_TARGET, _DEFAULT_CERTIFICATE_PATH)
-    try:
-        with open(cert_path, "rb") as cert_file:
-            raw_data = cert_file.read().strip()
-    except OSError:
+def get_target_cert() -> CertType:
+    """
+    Get the target mTLS certificate for requests.
+    
+    Returns the cert parameter to be used with requests library.
+    Can be either a single PEM file path (containing both cert and key)
+    or a tuple of (cert_path, key_path).
+    
+    Environment variables:
+        MTLS_TARGET_CERT: Path to the target certificate PEM file
+        MTLS_TARGET_KEY: Path to the target key PEM file (optional if key is in cert file)
+    
+    Returns:
+        None if no cert configured, str if single file, tuple if separate cert/key files
+    """
+    cert_path = os.environ.get(MTLS_TARGET_CERT_ENV)
+    if not cert_path:
         return None
-    if not raw_data:
-        return None
-    return base64.b64encode(raw_data).decode("ascii")
+    
+    key_path = os.environ.get(MTLS_TARGET_KEY_ENV)
+    if key_path:
+        return (cert_path, key_path)
+    
+    return cert_path
 
 
-def with_instabase_certificate(headers: Optional[Dict[str, str]] = None, source: bool = True) -> Dict[str, str]:
-    """Return headers dict ensuring the Instabase certificate header is attached."""
-
-    updated_headers: Dict[str, str] = dict(headers or {})
-    cert_value = load_source_certificate() if source else load_target_certificate()
-    if cert_value:
-        updated_headers.setdefault(CERTIFICATE_HEADER_NAME, cert_value)
-    return updated_headers
+def get_cert(source: bool = True) -> CertType:
+    """
+    Get the mTLS certificate for requests based on source/target flag.
+    
+    Args:
+        source: If True, returns source cert; if False, returns target cert.
+    
+    Returns:
+        The cert parameter to be used with requests library.
+    """
+    return get_source_cert() if source else get_target_cert()
 
 
 def clear_certificate_cache() -> None:
     """Helper for tests to clear the cached certificate value."""
-
-    load_instabase_certificate.cache_clear()
-
+    get_source_cert.cache_clear()
+    get_target_cert.cache_clear()
