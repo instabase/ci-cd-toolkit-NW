@@ -47,24 +47,12 @@ jobs:
           name: ib_cicd_dist
           path: dist/
 
-      - name: Install package version reader
-        # Installs dasel into the environment for clean parsing of the pyproject.toml configuration
-        # Project lives at https://github.com/TomWright/dasel
-        # Installation instructions that this is taken from
-        # live at https://daseldocs.tomwright.me/installation#manual
-        run: >-
-          curl -sSLf
-          "$(curl -sSLf https://api.github.com/repos/tomwright/dasel/releases/latest | grep browser_download_url | grep linux_amd64 | grep -v .gz | cut -d\" -f 4)"
-          -L -o dasel
-          && chmod +x dasel
-
       - name: Set package version
-        # Get the Python package version from the pyproject.toml
-        # and set it under python-package-version.PYTHON_PKG_VERSION for later use
+        # Get the Python package version from the pyproject.toml using Python's built-in tomllib
         id: python-package-version
         run: >-
           echo
-          "PYTHON_PKG_VERSION=$(cat pyproject.toml | ./dasel -r toml '.project.version' | tr -d "'")"
+          "PYTHON_PKG_VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")"
           >> "$GITHUB_OUTPUT"
 
       - name: Get package path
