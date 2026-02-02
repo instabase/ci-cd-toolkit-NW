@@ -50,13 +50,14 @@ def clean_function_data(function_data):
         function_data.pop(field, None)
 
 
-def get_settings(project_id, token, host_url, proxies=None):
+def get_settings(project_id, token, host_url, proxies=None, context=None):
     """
     Return the schema response
         Args:
             project_id: the build project id
             token: auth token
             host_url: the environment project is in
+            context: organization context for the Ib-Context header
         Return:
             ocr settings response
     """
@@ -65,6 +66,8 @@ def get_settings(project_id, token, host_url, proxies=None):
         f"{host_url}/api/v2/aihub/build/projects?proj_ids={project_id}&query_option=uuid"
     )
     headers = {"Authorization": f"Bearer {token}"}
+    if context:
+        headers["Ib-Context"] = context
     response = requests.get(url=get_ocr_url, headers=headers, proxies=proxies,
                            cert=get_cert(source=True))
     response.raise_for_status()  # This will raise an error
@@ -105,19 +108,22 @@ def modify_settings(project_id, response):
 #### Function for UDFs ####
 
 
-def get_udfs(project_id, token, host_url, proxies=None):
+def get_udfs(project_id, token, host_url, proxies=None, context=None):
     """
     Return the udfs response
         Args:
             project_id: the build project id
             token: auth token
             host_url: the environment project is in
+            context: organization context for the Ib-Context header
         Return:
             schema response
     """
 
     get_udfs_url = f"{host_url}/api/v2/aihub/build/projects/{project_id}/udfs"
     headers = {"Authorization": f"Bearer {token}"}
+    if context:
+        headers["Ib-Context"] = context
     response = requests.get(url=get_udfs_url, headers=headers, proxies=proxies,
                            cert=get_cert(source=True))
     response.raise_for_status()  # This will raise an error
@@ -181,19 +187,22 @@ def generate_id():
     return uuid[:21]
 
 
-def get_schema(project_id, token, host_url, proxies=None):
+def get_schema(project_id, token, host_url, proxies=None, context=None):
     """
     Return the schema response
         Args:
             project_id: the build project id
             token: auth token
             host_url: the environment project is in
+            context: organization context for the Ib-Context header
         Return:
             schema response
     """
 
     get_schema_url = f"{host_url}/api/v2/aihub/build/projects/{project_id}/schema"
     headers = {"Authorization": f"Bearer {token}"}
+    if context:
+        headers["Ib-Context"] = context
     response = requests.get(url=get_schema_url, headers=headers, proxies=proxies,
                            cert=get_cert(source=True))
     response.raise_for_status()  # This will raise an error
@@ -361,13 +370,14 @@ def modify_schema(
 #### Functions for validations ####
 
 
-def get_validations(project_id, token, host_url, proxies=None):
+def get_validations(project_id, token, host_url, proxies=None, context=None):
     """
     Return the validations response
         Args:
             project_id: the build project id
             token: auth token
             host_url: the environment project is in
+            context: organization context for the Ib-Context header
         Return:
             schema response
     """
@@ -376,6 +386,8 @@ def get_validations(project_id, token, host_url, proxies=None):
         f"{host_url}/api/v2/aihub/build/projects/{project_id}/validations"
     )
     headers = {"Authorization": f"Bearer {token}"}
+    if context:
+        headers["Ib-Context"] = context
     response = requests.get(url=get_validations_url, headers=headers, proxies=proxies,
                            cert=get_cert(source=True))
     response.raise_for_status()  # This will raise an error

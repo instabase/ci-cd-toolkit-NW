@@ -114,7 +114,7 @@ def load_config(file_path="config.json"):
         )
 
 
-def fetch_details(config, proxies=None):
+def fetch_details(config, proxies=None, context=None):
     """Fetch phase information (settings, schema, validations, etc.)."""
     source_host_url = os.environ.get("SOURCE_HOST_URL")
     source_token = os.environ.get("SOURCE_TOKEN")
@@ -122,22 +122,22 @@ def fetch_details(config, proxies=None):
 
     try:
         projects = get_settings(
-            source_project_id, source_token, source_host_url, proxies=proxies
+            source_project_id, source_token, source_host_url, proxies=proxies, context=context
         )
         save_to_file(projects, "fetched_settings.json")
 
         udfs = get_udfs(
-            source_project_id, source_token, source_host_url, proxies=proxies
+            source_project_id, source_token, source_host_url, proxies=proxies, context=context
         )
         save_to_file(udfs, "fetched_udfs.json")
 
         schema = get_schema(
-            source_project_id, source_token, source_host_url, proxies=proxies
+            source_project_id, source_token, source_host_url, proxies=proxies, context=context
         )
         save_to_file(schema, "fetched_schema.json")
 
         validations = get_validations(
-            source_project_id, source_token, source_host_url, proxies=proxies
+            source_project_id, source_token, source_host_url, proxies=proxies, context=context
         )
         save_to_file(validations, "fetched_validations.json")
 
@@ -565,7 +565,7 @@ def main(args=None):
             download_file(source_host_url, source_token, data_path, proxies=proxy, context=source_org)
 
             print("Fetching schema details for rebuilding...")
-            fetch_details(config, proxies=proxy)
+            fetch_details(config, proxies=proxy, context=source_org)
 
             if app_id:
                 print("Getting app details...")
