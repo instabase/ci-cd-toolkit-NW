@@ -147,7 +147,7 @@ def upload_file(ib_host, api_token, file_path, file_data, proxies=None):
     return resp
 
 
-def read_file_through_api(ib_host, api_token, path_to_file, proxies=None):
+def read_file_through_api(ib_host, api_token, path_to_file, proxies=None, context=None):
     """
     Read file from IB environment
 
@@ -155,6 +155,8 @@ def read_file_through_api(ib_host, api_token, path_to_file, proxies=None):
         ib_host (str): IB host url
         api_token (str): API token for IB environment
         path_to_file (str): path to file on IB environment
+        proxies (dict): Proxy configuration
+        context (str): Context header value (organization)
 
     Returns:
         Response object
@@ -164,6 +166,8 @@ def read_file_through_api(ib_host, api_token, path_to_file, proxies=None):
 
     params = {"expect-node-type": "file"}
     headers = {"Authorization": f"Bearer {api_token}"}
+    if context:
+        headers["Ib-Context"] = context
 
     resp = requests.get(
         url, headers=headers, params=params, verify=False, proxies=proxies,
@@ -546,7 +550,7 @@ def copy_file_within_ib(
 
 
 def read_file_content_from_ib(
-    ib_host, api_token, file_path_to_read, use_clients=False, proxies=None, **kwargs
+    ib_host, api_token, file_path_to_read, use_clients=False, proxies=None, context=None, **kwargs
 ):
     """
     Reads content of a file on IB environment
@@ -556,13 +560,15 @@ def read_file_content_from_ib(
         api_token (str): API token
         file_path_to_read (str): Path to read
         use_clients (bool): Use clients if in flow
+        proxies (dict): Proxy configuration
+        context (str): Context header value (organization)
 
     Returns:
         bytes: File content
     """
     if not use_clients:
         resp = read_file_through_api(
-            ib_host, api_token, file_path_to_read, proxies=proxies
+            ib_host, api_token, file_path_to_read, proxies=proxies, context=context
         )
         return resp.content
     else:

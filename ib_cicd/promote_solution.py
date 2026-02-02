@@ -277,6 +277,7 @@ def main(args=None):
                             SOURCE_IB_HOST,
                             SOURCE_IB_API_TOKEN,
                             details["solution_path"] + "/icon.png",
+                            context=SOURCE_ORG,
                         ).content
                     except Exception as e:
                         print(f"Failed to download app icon: {e}")

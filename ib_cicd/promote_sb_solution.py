@@ -75,7 +75,7 @@ def get_latest_flow_version(flow_path, ib_host, ib_token):
         raise
 
 
-def get_sb_flow_path(solution_builder_name, flow_name, ib_root, ib_host, ib_token):
+def get_sb_flow_path(solution_builder_name, flow_name, ib_root, ib_host, ib_token, context=None):
     """Get path to flow in solution builder project.
 
     Args:
@@ -84,6 +84,7 @@ def get_sb_flow_path(solution_builder_name, flow_name, ib_root, ib_host, ib_toke
         ib_root: Root IB drive path
         ib_host: IB host URL
         ib_token: IB API token
+        context: Context header value (organization)
 
     Returns:
         Full IB path to flow version
@@ -100,7 +101,7 @@ def get_sb_flow_path(solution_builder_name, flow_name, ib_root, ib_host, ib_toke
         for path in paths:
             metadata_path = os.path.join(path, "metadata.json")
             metadata_content = read_file_through_api(
-                ib_host, ib_token, metadata_path
+                ib_host, ib_token, metadata_path, context=context
             ).content
             metadata = json.loads(metadata_content)
             if metadata["name"] == flow_name:
@@ -172,6 +173,7 @@ def main(args=None):
                 WORKSPACE_DRIVE_PATH,
                 SOURCE_IB_HOST,
                 SOURCE_IB_API_TOKEN,
+                context=SOURCE_ORG,
             )
             flow_path = os.path.join(flow_folder, "flow.ibflow")
             flow_builds_dir = os.path.join(os.path.dirname(flow_path), "builds")
@@ -239,6 +241,7 @@ def main(args=None):
                             SOURCE_IB_HOST,
                             SOURCE_IB_API_TOKEN,
                             details["solution_path"] + "/icon.png",
+                            context=SOURCE_ORG,
                         ).content
                     except Exception as e:
                         print(f"Failed to download app icon: {e}")

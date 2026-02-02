@@ -16,7 +16,7 @@ from ib_cicd.ib_helpers import (
 
 
 def download_solution(
-    ib_host, api_token, solution_path, write_to_local=True, unzip_solution=True
+    ib_host, api_token, solution_path, write_to_local=True, unzip_solution=True, context=None
 ):
     """Downloads .ibsolution file content.
 
@@ -26,10 +26,11 @@ def download_solution(
         solution_path: Path to ibsolution on IB.
         write_to_local: Write .ibsolution bytes to local file.
         unzip_solution: Unzip the solution after download.
+        context: Context header value (organization).
     Returns:
         Response object.
     """
-    resp = read_file_through_api(ib_host, api_token, solution_path)
+    resp = read_file_through_api(ib_host, api_token, solution_path, context=context)
 
     if write_to_local:
         with open("solution.ibflowbin", "wb") as fd:

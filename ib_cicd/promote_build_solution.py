@@ -46,11 +46,11 @@ from ib_cicd.rebuild_utils import (
 )
 
 
-def download_file(ib_host, api_token, solution_path, proxies=None):
+def download_file(ib_host, api_token, solution_path, proxies=None, context=None):
     """
     Download a JSON file from the Instabase API.
     """
-    response = read_file_through_api(ib_host, api_token, solution_path, proxies=proxies)
+    response = read_file_through_api(ib_host, api_token, solution_path, proxies=proxies, context=context)
     if not response or response.status_code != 200:
         raise Exception(
             f"We couldn't download your file from {solution_path}. This could be because the file doesn't exist or you don't have permission to access it. Please check the path and try again."
@@ -263,7 +263,7 @@ def is_directory(ib_host, api_token, path, proxies=None):
         raise Exception(f"Failed to list directory {path}: {e}")
 
 
-def download_regression_output(url, api_token, test_summary_path, proxies=None):
+def download_regression_output(url, api_token, test_summary_path, proxies=None, context=None):
     """
     Downloads regression test outputs for applications that have passed the tests.
 
@@ -271,6 +271,8 @@ def download_regression_output(url, api_token, test_summary_path, proxies=None):
         url (str): The base URL for the API.
         api_token (str): The API token for authentication.
         test_summary_path (str): Path to the test summary file.
+        proxies (dict): Proxy configuration.
+        context (str): Context header value (organization).
 
     Returns:
         None
@@ -305,7 +307,7 @@ def download_regression_output(url, api_token, test_summary_path, proxies=None):
 
             try:
                 response = read_file_through_api(
-                    url, api_token, file_path, proxies=proxies
+                    url, api_token, file_path, proxies=proxies, context=context
                 )
                 response.raise_for_status()
                 file_name = os.path.join(
@@ -436,9 +438,9 @@ def run_regression_tests(
     )
     test_summary_path = flow_config["TESTS_SUMMARY_PATH"]
     print("Downloading test summary...")
-    download_file(source_host_url, source_token, test_summary_path, proxies=proxies)
+    download_file(source_host_url, source_token, test_summary_path, proxies=proxies, context=source_org)
     download_regression_output(
-        source_host_url, source_token, "summary.json", proxies=proxies
+        source_host_url, source_token, "summary.json", proxies=proxies, context=source_org
     )
 
 
@@ -560,7 +562,7 @@ def main(args=None):
             )
 
             print("Downloading project snapshot...")
-            download_file(source_host_url, source_token, data_path, proxies=proxy)
+            download_file(source_host_url, source_token, data_path, proxies=proxy, context=source_org)
 
             print("Fetching schema details for rebuilding...")
             fetch_details(config, proxies=proxy)
@@ -586,6 +588,7 @@ def main(args=None):
                             source_token,
                             details["solution_path"] + "/icon.png",
                             proxies=proxy,
+                            context=source_org,
                         ).content
                     except Exception as e:
                         print(f"Failed to download app icon: {e}")
@@ -650,6 +653,7 @@ def main(args=None):
                             source_token,
                             details["solution_path"] + "/icon.png",
                             proxies=proxy,
+                            context=source_org,
                         ).content
                     except Exception as e:
                         print(f"Failed to download app icon: {e}")
