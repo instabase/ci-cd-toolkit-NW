@@ -13,6 +13,25 @@ MTLS_TARGET_KEY_ENV = "MTLS_TARGET_KEY"
 CertType = Optional[Union[str, Tuple[str, str]]]
 
 
+def _is_valid_cert_file(path: Optional[str]) -> bool:
+    """
+    Check if a certificate file exists and has valid content.
+    
+    A valid cert file must exist, be readable, and contain non-whitespace content.
+    """
+    if not path:
+        return False
+    try:
+        if not os.path.isfile(path):
+            return False
+        with open(path, 'r') as f:
+            content = f.read().strip()
+            # Check for actual PEM content (should start with -----BEGIN)
+            return bool(content) and '-----BEGIN' in content
+    except (IOError, OSError):
+        return False
+
+
 @lru_cache(maxsize=1)
 def get_source_cert() -> CertType:
     """
@@ -27,14 +46,15 @@ def get_source_cert() -> CertType:
         MTLS_SOURCE_KEY: Path to the source key PEM file (optional if key is in cert file)
     
     Returns:
-        None if no cert configured, str if single file, tuple if separate cert/key files
+        None if no cert configured or files are empty/invalid, 
+        str if single file, tuple if separate cert/key files
     """
     cert_path = os.environ.get(MTLS_SOURCE_CERT_ENV)
-    if not cert_path:
+    if not _is_valid_cert_file(cert_path):
         return None
     
     key_path = os.environ.get(MTLS_SOURCE_KEY_ENV)
-    if key_path:
+    if key_path and _is_valid_cert_file(key_path):
         return (cert_path, key_path)
     
     return cert_path
@@ -54,14 +74,15 @@ def get_target_cert() -> CertType:
         MTLS_TARGET_KEY: Path to the target key PEM file (optional if key is in cert file)
     
     Returns:
-        None if no cert configured, str if single file, tuple if separate cert/key files
+        None if no cert configured or files are empty/invalid,
+        str if single file, tuple if separate cert/key files
     """
     cert_path = os.environ.get(MTLS_TARGET_CERT_ENV)
-    if not cert_path:
+    if not _is_valid_cert_file(cert_path):
         return None
     
     key_path = os.environ.get(MTLS_TARGET_KEY_ENV)
-    if key_path:
+    if key_path and _is_valid_cert_file(key_path):
         return (cert_path, key_path)
     
     return cert_path
