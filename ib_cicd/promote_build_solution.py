@@ -5,6 +5,7 @@ import pathlib
 import re
 import time
 
+from ib_cicd.certificates import get_cert
 from ib_cicd.ib_helpers import (
     wait_until_job_finishes,
     create_deployment,
@@ -46,11 +47,11 @@ from ib_cicd.rebuild_utils import (
 )
 
 
-def download_file(ib_host, api_token, solution_path, proxies=None, context=None):
+def download_file(ib_host, api_token, solution_path, proxies=None, context=None, cert=None):
     """
     Download a JSON file from the Instabase API.
     """
-    response = read_file_through_api(ib_host, api_token, solution_path, proxies=proxies, context=context)
+    response = read_file_through_api(ib_host, api_token, solution_path, proxies=proxies, context=context, cert=cert)
     if not response or response.status_code != 200:
         raise Exception(
             f"We couldn't download your file from {solution_path}. This could be because the file doesn't exist or you don't have permission to access it. Please check the path and try again."
@@ -114,7 +115,7 @@ def load_config(file_path="config.json"):
         )
 
 
-def fetch_details(config, proxies=None, context=None):
+def fetch_details(config, proxies=None, context=None, cert=None):
     """Fetch phase information (settings, schema, validations, etc.)."""
     source_host_url = os.environ.get("SOURCE_HOST_URL")
     source_token = os.environ.get("SOURCE_TOKEN")
@@ -122,22 +123,22 @@ def fetch_details(config, proxies=None, context=None):
 
     try:
         projects = get_settings(
-            source_project_id, source_token, source_host_url, proxies=proxies, context=context, is_source=True
+            source_project_id, source_token, source_host_url, proxies=proxies, context=context, cert=cert
         )
         save_to_file(projects, "fetched_settings.json")
 
         udfs = get_udfs(
-            source_project_id, source_token, source_host_url, proxies=proxies, context=context, is_source=True
+            source_project_id, source_token, source_host_url, proxies=proxies, context=context, cert=cert
         )
         save_to_file(udfs, "fetched_udfs.json")
 
         schema = get_schema(
-            source_project_id, source_token, source_host_url, proxies=proxies, context=context, is_source=True
+            source_project_id, source_token, source_host_url, proxies=proxies, context=context, cert=cert
         )
         save_to_file(schema, "fetched_schema.json")
 
         validations = get_validations(
-            source_project_id, source_token, source_host_url, proxies=proxies, context=context, is_source=True
+            source_project_id, source_token, source_host_url, proxies=proxies, context=context, cert=cert
         )
         save_to_file(validations, "fetched_validations.json")
 
@@ -147,7 +148,7 @@ def fetch_details(config, proxies=None, context=None):
         )
 
 
-def rebuild_project(config, proxies=None):
+def rebuild_project(config, proxies=None, cert=None):
     """Rebuild the project in the target environment."""
     target_token = os.environ.get("TARGET_TOKEN")
     target_host_url = os.environ.get("TARGET_HOST_URL")
@@ -185,6 +186,7 @@ def rebuild_project(config, proxies=None):
                 target_org,
                 target_workspace,
                 proxies=proxies,
+                cert=cert,
             )
             target_project_id = response["project_id"]
 
@@ -199,11 +201,12 @@ def rebuild_project(config, proxies=None):
             target_host_url,
             modified_settings,
             proxies=proxies,
+            cert=cert,
         )
 
         sanitized_udfs = sanitize_udf_payload(udfs)
         target_schema = get_schema(
-            target_project_id, target_token, target_host_url, proxies=proxies, is_source=False
+            target_project_id, target_token, target_host_url, proxies=proxies, cert=cert
         )
         modified_schema = modify_schema(
             target_schema,
@@ -212,6 +215,7 @@ def rebuild_project(config, proxies=None):
             target_token,
             target_host_url,
             sanitized_udfs,
+            cert=cert,
         )
         result = post_schema(
             target_project_id,
@@ -219,12 +223,13 @@ def rebuild_project(config, proxies=None):
             target_host_url,
             modified_schema,
             proxies=proxies,
+            cert=cert,
         )
 
         mappings = map_field_ids(schema, result)
         modified_validations = modify_validations(
             get_validations(
-                target_project_id, target_token, target_host_url, proxies=proxies, is_source=False
+                target_project_id, target_token, target_host_url, proxies=proxies, cert=cert
             ),
             validations,
             target_project_id,
@@ -232,6 +237,7 @@ def rebuild_project(config, proxies=None):
             target_host_url,
             sanitized_udfs,
             mappings,
+            cert=cert,
         )
         for payload in modified_validations:
             result = post_validations(
@@ -240,6 +246,7 @@ def rebuild_project(config, proxies=None):
                 target_host_url,
                 payload,
                 proxies=proxies,
+                cert=cert,
             )
             if payload.get("type") == "PROMPT_UDF":
                 run_prompt_udf(
@@ -248,6 +255,7 @@ def rebuild_project(config, proxies=None):
                     target_host_url,
                     result["id"],
                     proxies=proxies,
+                    cert=cert,
                 )
         return target_project_id
 
@@ -255,15 +263,15 @@ def rebuild_project(config, proxies=None):
         raise Exception(f"Something went wrong while rebuilding your project: {e}.")
 
 
-def is_directory(ib_host, api_token, path, proxies=None):
+def is_directory(ib_host, api_token, path, proxies=None, cert=None):
     try:
-        contents = list_directory(ib_host, path, api_token, proxies=proxies)
+        contents = list_directory(ib_host, path, api_token, proxies=proxies, cert=cert)
         return True if contents else False
     except Exception as e:
         raise Exception(f"Failed to list directory {path}: {e}")
 
 
-def download_regression_output(url, api_token, test_summary_path, proxies=None, context=None):
+def download_regression_output(url, api_token, test_summary_path, proxies=None, context=None, cert=None):
     """
     Downloads regression test outputs for applications that have passed the tests.
 
@@ -273,6 +281,7 @@ def download_regression_output(url, api_token, test_summary_path, proxies=None, 
         test_summary_path (str): Path to the test summary file.
         proxies (dict): Proxy configuration.
         context (str): Context header value (organization).
+        cert: mTLS certificate for the request.
 
     Returns:
         None
@@ -292,7 +301,7 @@ def download_regression_output(url, api_token, test_summary_path, proxies=None, 
         print(f"Listing files in the folder: {folder_path}")
 
         try:
-            file_list = list_directory(url, folder_path, api_token, proxies=proxies)
+            file_list = list_directory(url, folder_path, api_token, proxies=proxies, cert=cert)
         except Exception as e:
             raise Exception(f"Failed to list directory {folder_path}: {e}")
 
@@ -301,13 +310,13 @@ def download_regression_output(url, api_token, test_summary_path, proxies=None, 
 
         for file_path in file_list:
             print(f"Processing file: {file_path}")
-            if is_directory(url, api_token, file_path, proxies=proxies):
+            if is_directory(url, api_token, file_path, proxies=proxies, cert=cert):
                 print(f"Skipping directory: {file_path}")
                 continue
 
             try:
                 response = read_file_through_api(
-                    url, api_token, file_path, proxies=proxies, context=context
+                    url, api_token, file_path, proxies=proxies, context=context, cert=cert
                 )
                 response.raise_for_status()
                 file_name = os.path.join(
@@ -335,6 +344,7 @@ def run_regression_tests(
     app_id,
     config,
     proxies=None,
+    cert=None,
 ):
     """
     Run regression tests and handle the suite download, upload, and execution.
@@ -346,6 +356,8 @@ def run_regression_tests(
         source_workspace (str): The source workspace.
         app_id (str): The application ID.
         config (dict): The configuration dictionary.
+        proxies (dict): Proxy configuration.
+        cert: mTLS certificate for the request.
 
     Returns:
         None
@@ -362,6 +374,7 @@ def run_regression_tests(
             os.path.join(target_path, "Regression Suite.zip"),
             upload_data,
             proxies=proxies,
+            cert=cert,
         )
     time.sleep(3)
     unzip_files(
@@ -370,6 +383,7 @@ def run_regression_tests(
         os.path.join(target_path, "Regression Suite.zip"),
         target_path,
         proxies=proxies,
+        cert=cert,
     )
     time.sleep(3)
     delete_folder_or_file_from_ib(
@@ -378,6 +392,7 @@ def run_regression_tests(
         source_token,
         use_clients=False,
         proxies=proxies,
+        cert=cert,
     )
 
     # Uploading the config
@@ -390,6 +405,7 @@ def run_regression_tests(
         config_path,
         json.dumps(app_config).encode("utf-8"),
         proxies=proxies,
+        cert=cert,
     )
 
     print("Running regression...")
@@ -407,7 +423,7 @@ def run_regression_tests(
         "dummy_input",
     )
     create_folder_if_it_does_not_exists(
-        source_host_url, source_token, input_files_path, proxies=proxies
+        source_host_url, source_token, input_files_path, proxies=proxies, cert=cert
     )
     upload_file(
         source_host_url,
@@ -415,6 +431,7 @@ def run_regression_tests(
         os.path.join(input_files_path, "foot.txt"),
         "dummy_input",
         proxies=proxies,
+        cert=cert,
     )
 
     flow_config = {
@@ -432,15 +449,16 @@ def run_regression_tests(
         flow_config,
         input_files_path,
         proxies=proxies,
+        cert=cert,
     )
     wait_until_job_finishes(
-        source_host_url, response, "async", source_token, proxies=proxies, context=source_org
+        source_host_url, response, "async", source_token, proxies=proxies, context=source_org, cert=cert
     )
     test_summary_path = flow_config["TESTS_SUMMARY_PATH"]
     print("Downloading test summary...")
-    download_file(source_host_url, source_token, test_summary_path, proxies=proxies, context=source_org)
+    download_file(source_host_url, source_token, test_summary_path, proxies=proxies, context=source_org, cert=cert)
     download_regression_output(
-        source_host_url, source_token, "summary.json", proxies=proxies, context=source_org
+        source_host_url, source_token, "summary.json", proxies=proxies, context=source_org, cert=cert
     )
 
 
@@ -543,15 +561,19 @@ def main(args=None):
             )
             proxy = None
 
+        # Get mTLS certificates for source and target environments
+        source_cert = get_cert(source=True)
+        target_cert = get_cert(source=False)
+
         if args.compile_solution:
             print("Compiling solution binary...")
             response = generate_flow(
-                source_host_url, source_token, project_id, source_org, proxies=proxy
+                source_host_url, source_token, project_id, source_org, proxies=proxy, cert=source_cert
             )
             print(response)
             job_id = response["job_id"]
             response = wait_until_job_finishes(
-                source_host_url, job_id, "async", source_token, proxies=proxy, context=source_org
+                source_host_url, job_id, "async", source_token, proxies=proxy, context=source_org, cert=source_cert
             )
             print(response)
             solution_path = response["results"][0]["flow_path"]
@@ -562,15 +584,15 @@ def main(args=None):
             )
 
             print("Downloading project snapshot...")
-            download_file(source_host_url, source_token, data_path, proxies=proxy, context=source_org)
+            download_file(source_host_url, source_token, data_path, proxies=proxy, context=source_org, cert=source_cert)
 
             print("Fetching schema details for rebuilding...")
-            fetch_details(config, proxies=proxy, context=source_org)
+            fetch_details(config, proxies=proxy, context=source_org, cert=source_cert)
 
             if app_id:
                 print("Getting app details...")
                 response = get_app_details(
-                    source_host_url, source_token, source_org, app_id, proxies=proxy
+                    source_host_url, source_token, source_org, app_id, proxies=proxy, cert=source_cert
                 )
                 details = response.get("solution", {})
                 if not details:
@@ -589,6 +611,7 @@ def main(args=None):
                             details["solution_path"] + "/icon.png",
                             proxies=proxy,
                             context=source_org,
+                            cert=source_cert,
                         ).content
                     except Exception as e:
                         print(f"Failed to download app icon: {e}")
@@ -617,7 +640,7 @@ def main(args=None):
                 print(payload)
                 # Publish the build app
                 response = publish_build_app(
-                    source_host_url, source_token, payload, source_org, proxies=proxy
+                    source_host_url, source_token, payload, source_org, proxies=proxy, cert=source_cert
                 )
                 response = wait_until_job_finishes(
                     source_host_url,
@@ -626,16 +649,17 @@ def main(args=None):
                     source_token,
                     proxies=proxy,
                     context=source_org,
+                    cert=source_cert,
                 )
                 print(response)
                 new_app_id = get_published_app_id(
-                    source_host_url, source_token, project_id, proxies=proxy
+                    source_host_url, source_token, project_id, proxies=proxy, cert=source_cert
                 )
                 config["source"]["app_id"] = new_app_id
                 save_to_file(config, "config.json")
                 print("Getting app details...")
                 response = get_app_details(
-                    source_host_url, source_token, source_org, new_app_id, proxies=proxy
+                    source_host_url, source_token, source_org, new_app_id, proxies=proxy, cert=source_cert
                 )
                 details = response.get("solution", {})
                 if not details:
@@ -654,6 +678,7 @@ def main(args=None):
                             details["solution_path"] + "/icon.png",
                             proxies=proxy,
                             context=source_org,
+                            cert=source_cert,
                         ).content
                     except Exception as e:
                         print(f"Failed to download app icon: {e}")
@@ -672,6 +697,7 @@ def main(args=None):
                     source_org,
                     deployment_id,
                     proxies=proxy,
+                    cert=source_cert,
                 )
                 save_to_file(response, "deployment_details.json")
 
@@ -684,11 +710,12 @@ def main(args=None):
                 app_id,
                 config,
                 proxies=proxy,
+                cert=source_cert,
             )
 
         if args.create_build_project:
             print("Creating build project...")
-            target_project_id = rebuild_project(config, proxies=proxy)
+            target_project_id = rebuild_project(config, proxies=proxy, cert=target_cert)
             print(f"Build project created successfully with ID: {target_project_id}")
 
         if args.publish_build_app:
@@ -701,7 +728,7 @@ def main(args=None):
 
             # it is to support older version (can remove this in future)
             if not target_project_id:
-                target_project_id = rebuild_project(config, proxies=proxy)
+                target_project_id = rebuild_project(config, proxies=proxy, cert=target_cert)
                 print(
                     f"Build project created successfully with ID: {target_project_id}"
                 )
@@ -714,11 +741,12 @@ def main(args=None):
                 target_org,
                 "icon.png",
                 proxies=proxy,
+                cert=target_cert,
             )
             print(response)
             job_id = response["job_id"]
             response = wait_until_job_finishes(
-                target_host_url, job_id, "async", target_token, proxies=proxy, context=target_org
+                target_host_url, job_id, "async", target_token, proxies=proxy, context=target_org, cert=target_cert
             )
             print(response)
             time.sleep(3)
@@ -748,7 +776,7 @@ def main(args=None):
             print(payload)
             # Publish the build app
             response = publish_build_app(
-                target_host_url, target_token, payload, target_org, proxies=proxy
+                target_host_url, target_token, payload, target_org, proxies=proxy, cert=target_cert
             )
             response = wait_until_job_finishes(
                 target_host_url,
@@ -757,10 +785,11 @@ def main(args=None):
                 target_token,
                 proxies=proxy,
                 context=target_org,
+                cert=target_cert,
             )
             print(response)
             new_app_id = get_published_app_id(
-                target_host_url, target_token, target_project_id, proxies=proxy
+                target_host_url, target_token, target_project_id, proxies=proxy, cert=target_cert
             )
 
             # Add the state to the app
@@ -775,6 +804,7 @@ def main(args=None):
                 target_org,
                 new_app_id,
                 proxies=proxy,
+                cert=target_cert,
             )
             print(response)
 
@@ -788,7 +818,7 @@ def main(args=None):
                     f"Deleting build project with ID as rebuild is false: {target_project_id}..."
                 )
                 delete_build_project(
-                    target_host_url, target_token, target_project_id, proxies=proxy
+                    target_host_url, target_token, target_project_id, proxies=proxy, cert=target_cert
                 )
                 print("Build project deleted successfully.")
             else:
@@ -821,6 +851,7 @@ def main(args=None):
                 target_org,
                 deployment_id,
                 proxies=proxy,
+                cert=target_cert,
             )
             print("Great news! Your deployment has been created successfully.")
 
@@ -828,14 +859,14 @@ def main(args=None):
             target_project_id = config["target"].get("project_id")
             if target_project_id:
                 delete_build_project(
-                    target_host_url, target_token, target_project_id, proxies=proxy
+                    target_host_url, target_token, target_project_id, proxies=proxy, cert=target_cert
                 )
                 print("Build project deleted successfully.")
 
         if args.delete_app:
             if new_app_id:
                 delete_app(
-                    target_host_url, target_token, new_app_id, target_org, proxies=proxy
+                    target_host_url, target_token, new_app_id, target_org, proxies=proxy, cert=target_cert
                 )
                 print("App deleted successfully.")
 

@@ -10,8 +10,6 @@ import shutil
 import zipfile
 from importlib import resources
 
-from ib_cicd.certificates import get_cert
-
 
 def __get_file_api_root(ib_host, api_version="v2", add_files_suffix=True):
     """
@@ -79,7 +77,7 @@ def download_regression_suite(
     return renamed_zip_path
 
 
-def upload_chunks(ib_host, path, api_token, file_data, proxies=None):
+def upload_chunks(ib_host, path, api_token, file_data, proxies=None, cert=None):
     """
     Uploads bytes to a location on the Instabase environment in chunks
 
@@ -88,6 +86,8 @@ def upload_chunks(ib_host, path, api_token, file_data, proxies=None):
         path (str): path on IB environment to upload to
         api_token (str): API token for IB environment
         file_data (bytes): Data to upload
+        proxies (dict): Proxy configuration
+        cert: mTLS certificate for the request
 
     Returns:
         Response object
@@ -110,7 +110,7 @@ def upload_chunks(ib_host, path, api_token, file_data, proxies=None):
                 data=chunk,
                 verify=False,
                 proxies=proxies,
-                cert=get_cert(source=True),
+                cert=cert,
             )
             part_num += 1
 
@@ -119,7 +119,7 @@ def upload_chunks(ib_host, path, api_token, file_data, proxies=None):
     return resp
 
 
-def upload_file(ib_host, api_token, file_path, file_data, proxies=None):
+def upload_file(ib_host, api_token, file_path, file_data, proxies=None, cert=None):
     """
     Upload single file to path on IB environment
 
@@ -128,6 +128,8 @@ def upload_file(ib_host, api_token, file_path, file_data, proxies=None):
         api_token (str): API token for IB environment
         file_path (str): path on IB environment to upload to
         file_data (bytes): Data to upload
+        proxies (dict): Proxy configuration
+        cert: mTLS certificate for the request
 
     Returns:
         Response object
@@ -138,7 +140,7 @@ def upload_file(ib_host, api_token, file_path, file_data, proxies=None):
 
     resp = requests.put(
         url, headers=headers, data=file_data, verify=False, proxies=proxies,
-        cert=get_cert(source=True),
+        cert=cert,
     )
 
     if resp.status_code != 204:
@@ -147,7 +149,7 @@ def upload_file(ib_host, api_token, file_path, file_data, proxies=None):
     return resp
 
 
-def read_file_through_api(ib_host, api_token, path_to_file, proxies=None, context=None):
+def read_file_through_api(ib_host, api_token, path_to_file, proxies=None, context=None, cert=None):
     """
     Read file from IB environment
 
@@ -157,6 +159,7 @@ def read_file_through_api(ib_host, api_token, path_to_file, proxies=None, contex
         path_to_file (str): path to file on IB environment
         proxies (dict): Proxy configuration
         context (str): Context header value (organization)
+        cert: mTLS certificate for the request
 
     Returns:
         Response object
@@ -171,7 +174,7 @@ def read_file_through_api(ib_host, api_token, path_to_file, proxies=None, contex
 
     resp = requests.get(
         url, headers=headers, params=params, verify=False, proxies=proxies,
-        cert=get_cert(source=True),
+        cert=cert,
     )
 
     if resp.status_code != 200:
@@ -180,7 +183,7 @@ def read_file_through_api(ib_host, api_token, path_to_file, proxies=None, contex
     return resp
 
 
-def publish_to_marketplace(ib_host, api_token, ibsolution_path, proxies=None):
+def publish_to_marketplace(ib_host, api_token, ibsolution_path, proxies=None, cert=None):
     """
     Publishes an ibsolution to Marketplace
 
@@ -188,6 +191,8 @@ def publish_to_marketplace(ib_host, api_token, ibsolution_path, proxies=None):
         ib_host (str): IB host url
         api_token (str): API token for IB environment
         ibsolution_path (str): path to .ibsolution file
+        proxies (dict): Proxy configuration
+        cert: mTLS certificate for the request
 
     Returns:
         Response object
@@ -201,7 +206,7 @@ def publish_to_marketplace(ib_host, api_token, ibsolution_path, proxies=None):
 
     resp = requests.post(
         url, headers=headers, data=json_data, verify=False, proxies=proxies,
-        cert=get_cert(source=True),
+        cert=cert,
     )
     try:
         resp_json = resp.json()
@@ -217,7 +222,7 @@ def publish_to_marketplace(ib_host, api_token, ibsolution_path, proxies=None):
 
 
 def make_api_request(
-    url, api_token, method="get", payload=None, context=None, verify=True, proxies=None
+    url, api_token, method="get", payload=None, context=None, verify=True, proxies=None, cert=None
 ):
     """
     Makes an API request with common error handling and logging.  Raises an exception on failure.
@@ -229,6 +234,8 @@ def make_api_request(
         payload (dict): Request payload for POST
         context (str): Context header value
         verify (bool): Verify SSL
+        proxies (dict): Proxy configuration
+        cert: mTLS certificate for the request
 
     Returns:
         dict: Response JSON on success
@@ -250,7 +257,7 @@ def make_api_request(
                 headers=headers,
                 verify=verify,
                 proxies=proxies,
-                cert=get_cert(source=True),
+                cert=cert,
             )
         elif method == "patch":
             response = requests.patch(
@@ -259,7 +266,7 @@ def make_api_request(
                 data=json.dumps(payload),
                 verify=verify,
                 proxies=proxies,
-                cert=get_cert(source=True),
+                cert=cert,
             )
         else:
             response = requests.post(
@@ -268,7 +275,7 @@ def make_api_request(
                 data=json.dumps(payload),
                 verify=verify,
                 proxies=proxies,
-                cert=get_cert(source=True),
+                cert=cert,
             )
 
         response.raise_for_status()
@@ -279,53 +286,53 @@ def make_api_request(
         raise
 
 
-def publish_advanced_app(target_url, api_token, payload, context, proxies=None):
+def publish_advanced_app(target_url, api_token, payload, context, proxies=None, cert=None):
     """Publish an advanced app"""
     url = f"{target_url}/api/v2/zero-shot-idp/projects/advanced-app"
-    return make_api_request(url, api_token, "post", payload, context, proxies=proxies)
+    return make_api_request(url, api_token, "post", payload, context, proxies=proxies, cert=cert)
 
 
-def publish_build_app(target_url, api_token, payload, context, proxies=None):
+def publish_build_app(target_url, api_token, payload, context, proxies=None, cert=None):
     """Publish a build app"""
     url = f"{target_url}/api/v2/aihub/build/projects/app"
-    return make_api_request(url, api_token, "post", payload, context, proxies=proxies)
+    return make_api_request(url, api_token, "post", payload, context, proxies=proxies, cert=cert)
 
 
-def add_the_state(target_url, api_token, payload, context, app_id, proxies=None):
+def add_the_state(target_url, api_token, payload, context, app_id, proxies=None, cert=None):
     """Add the state to the app and update sharing settings"""
     url = f"{target_url}/api/v2/solutions/deployed/{app_id}"
     response = make_api_request(
-        url, api_token, "patch", payload, context, proxies=proxies
+        url, api_token, "patch", payload, context, proxies=proxies, cert=cert
     )
 
     if payload["state"] == "PRODUCTION":
         sharing_url = f"{target_url}/api/v2/solutions/deployed/{app_id}/sharing/orgs"
         payload = {"orgs": [context]}
         make_api_request(
-            sharing_url, api_token, "patch", payload, context, proxies=proxies
+            sharing_url, api_token, "patch", payload, context, proxies=proxies, cert=cert
         )
 
     return response
 
 
 def create_deployment(
-    target_url, api_token, payload, context, deployment_id=None, proxies=None
+    target_url, api_token, payload, context, deployment_id=None, proxies=None, cert=None
 ):
     """Create deployment in target"""
     if deployment_id:
         url = f"{target_url}/api/v2/aihub/deployments/{deployment_id}/deployed-solution-id"
         payload = {"deployed_solution_id": payload["deployed_solution_id"]}
         return make_api_request(
-            url, api_token, "patch", payload, context, proxies=proxies
+            url, api_token, "patch", payload, context, proxies=proxies, cert=cert
         )
     else:
         url = f"{target_url}/api/v2/aihub/deployments/"
         return make_api_request(
-            url, api_token, "post", payload, context, proxies=proxies
+            url, api_token, "post", payload, context, proxies=proxies, cert=cert
         )
 
 
-def check_job_status(ib_host, job_id, job_type, api_token, proxies=None, context=None):
+def check_job_status(ib_host, job_id, job_type, api_token, proxies=None, context=None, cert=None):
     """
     Check status of a job using Job Status API
 
@@ -336,6 +343,7 @@ def check_job_status(ib_host, job_id, job_type, api_token, proxies=None, context
         api_token (str): API token
         proxies (dict): Proxy configuration
         context (str): Context header value (organization)
+        cert: mTLS certificate for the request
 
     Returns:
         Response object
@@ -346,7 +354,7 @@ def check_job_status(ib_host, job_id, job_type, api_token, proxies=None, context
         headers["Ib-Context"] = context
 
     resp = requests.get(url, headers=headers, verify=False, proxies=proxies,
-                        cert=get_cert(source=True))
+                        cert=cert)
     content = json.loads(resp.content)
 
     if resp.status_code != 200 or (
@@ -357,7 +365,7 @@ def check_job_status(ib_host, job_id, job_type, api_token, proxies=None, context
     return resp
 
 
-def check_job_status_build(target_url, api_token, job_id, proxies=None):
+def check_job_status_build(target_url, api_token, job_id, proxies=None, cert=None):
     """
     Continuously checks build job status until DONE
 
@@ -365,6 +373,8 @@ def check_job_status_build(target_url, api_token, job_id, proxies=None):
         target_url (str): Target URL
         api_token (str): API token
         job_id (str): Job ID
+        proxies (dict): Proxy configuration
+        cert: mTLS certificate for the request
 
     Returns:
         str: Deployed solution ID on success
@@ -376,7 +386,7 @@ def check_job_status_build(target_url, api_token, job_id, proxies=None):
     for _ in range(15):
         try:
             response = requests.get(url, headers=headers, verify=True, proxies=proxies,
-                                    cert=get_cert(source=True))
+                                    cert=cert)
             response.raise_for_status()
             job_data = response.json()
             state = job_data.get("state", "UNKNOWN")
@@ -401,7 +411,7 @@ def check_job_status_build(target_url, api_token, job_id, proxies=None):
     raise Exception("Job failed to complete")
 
 
-def unzip_files(ib_host, api_token, zip_path, destination_path=None, proxies=None):
+def unzip_files(ib_host, api_token, zip_path, destination_path=None, proxies=None, cert=None):
     """
     Unzip file on IB environment
 
@@ -410,6 +420,8 @@ def unzip_files(ib_host, api_token, zip_path, destination_path=None, proxies=Non
         api_token (str): API token
         zip_path (str): Path to zip file
         destination_path (str): Path to unzip to
+        proxies (dict): Proxy configuration
+        cert: mTLS certificate for the request
 
     Returns:
         Response object
@@ -421,7 +433,7 @@ def unzip_files(ib_host, api_token, zip_path, destination_path=None, proxies=Non
     data = json.dumps({"src_path": zip_path, "dst_path": destination_path})
 
     resp = requests.post(url, headers=headers, data=data, verify=False, proxies=proxies,
-                         cert=get_cert(source=True))
+                         cert=cert)
 
     if resp.status_code != 202:
         raise Exception(f"Unable to unzip files: {resp.content}")
@@ -437,6 +449,7 @@ def compile_solution(
     solution_builder=False,
     solution_version=None,
     proxies=None,
+    cert=None,
 ):
     """
     Compiles a flow
@@ -449,6 +462,8 @@ def compile_solution(
                                full flow path is {solutionPath}/{relative_flow_path} (used for filesystem projects only)
     :param solution_builder: (bool) if the solution to be compiled is a solution builder project
     :param solution_version: (string) version of compiled solution (used for solution builder projects only)
+    :param proxies: (dict) Proxy configuration
+    :param cert: mTLS certificate for the request
     :return: Response object
     """
     # TODO: API docs issue
@@ -489,7 +504,7 @@ def compile_solution(
         data=data,
         verify=False,
         proxies=proxies,
-        cert=get_cert(source=True),
+        cert=cert,
     )
 
     # Verify request is successful
@@ -509,6 +524,7 @@ def copy_file_within_ib(
     destination_path,
     use_clients=False,
     proxies=None,
+    cert=None,
     **kwargs,
 ):
     """
@@ -520,6 +536,8 @@ def copy_file_within_ib(
         source_path (str): Source path
         destination_path (str): Destination path
         use_clients (bool): Use clients if in flow
+        proxies (dict): Proxy configuration
+        cert: mTLS certificate for the request
 
     Returns:
         Response object if use_clients is False
@@ -540,7 +558,7 @@ def copy_file_within_ib(
 
         resp = requests.post(
             url, headers=headers, data=data, verify=False, proxies=proxies,
-            cert=get_cert(source=True),
+            cert=cert,
         )
 
         if resp.status_code != 202:
@@ -550,7 +568,7 @@ def copy_file_within_ib(
 
 
 def read_file_content_from_ib(
-    ib_host, api_token, file_path_to_read, use_clients=False, proxies=None, context=None, **kwargs
+    ib_host, api_token, file_path_to_read, use_clients=False, proxies=None, context=None, cert=None, **kwargs
 ):
     """
     Reads content of a file on IB environment
@@ -562,13 +580,14 @@ def read_file_content_from_ib(
         use_clients (bool): Use clients if in flow
         proxies (dict): Proxy configuration
         context (str): Context header value (organization)
+        cert: mTLS certificate for the request
 
     Returns:
         bytes: File content
     """
     if not use_clients:
         resp = read_file_through_api(
-            ib_host, api_token, file_path_to_read, proxies=proxies, context=context
+            ib_host, api_token, file_path_to_read, proxies=proxies, context=context, cert=cert
         )
         return resp.content
     else:
@@ -584,7 +603,7 @@ def read_file_content_from_ib(
             raise Exception(f"Not valid file: {file_path_to_read}")
 
 
-def get_file_metadata(ib_host, api_token, file_path, proxies=None):
+def get_file_metadata(ib_host, api_token, file_path, proxies=None, cert=None):
     """
     Get metadata of file using file API
 
@@ -592,6 +611,8 @@ def get_file_metadata(ib_host, api_token, file_path, proxies=None):
         ib_host (str): IB host url
         api_token (str): API token
         file_path (str): Path to file
+        proxies (dict): Proxy configuration
+        cert: mTLS certificate for the request
 
     Returns:
         Response object
@@ -605,10 +626,10 @@ def get_file_metadata(ib_host, api_token, file_path, proxies=None):
     }
 
     return requests.head(url, headers=headers, proxies=proxies,
-                         cert=get_cert(source=True))
+                         cert=cert)
 
 
-def create_folder_if_it_does_not_exists(ib_host, api_token, folder_path, proxies=None):
+def create_folder_if_it_does_not_exists(ib_host, api_token, folder_path, proxies=None, cert=None):
     """
     Creates folder in IB environment if it doesn't exist
 
@@ -616,6 +637,8 @@ def create_folder_if_it_does_not_exists(ib_host, api_token, folder_path, proxies
         ib_host (str): IB host url
         api_token (str): API token
         folder_path (str): Path to create
+        proxies (dict): Proxy configuration
+        cert: mTLS certificate for the request
 
     Returns:
         Response object
@@ -625,7 +648,7 @@ def create_folder_if_it_does_not_exists(ib_host, api_token, folder_path, proxies
     headers = {"Authorization": f"Bearer {api_token}"}
 
     r = requests.head(metadata_url, headers=headers, verify=False, proxies=proxies,
-                      cert=get_cert(source=True))
+                      cert=cert)
     if r.status_code == 404:
         create_url = os.path.dirname(metadata_url)
         folder_name = os.path.basename(folder_path)
@@ -636,11 +659,11 @@ def create_folder_if_it_does_not_exists(ib_host, api_token, folder_path, proxies
             data=data,
             verify=False,
             proxies=proxies,
-            cert=get_cert(source=True),
+            cert=cert,
         )
 
 
-def list_directory(ib_host, folder, api_token, proxies=None):
+def list_directory(ib_host, folder, api_token, proxies=None, cert=None):
     """
     Lists directory on IB filesystem and returns full paths
 
@@ -648,6 +671,8 @@ def list_directory(ib_host, folder, api_token, proxies=None):
         ib_host (str): IB host url
         folder (str): Folder to list
         api_token (str): API token
+        proxies (dict): Proxy configuration
+        cert: mTLS certificate for the request
 
     Returns:
         list: List of paths in directory
@@ -667,7 +692,7 @@ def list_directory(ib_host, folder, api_token, proxies=None):
             headers=headers,
             params=params,
             proxies=proxies,
-            cert=get_cert(source=True),
+            cert=cert,
         )
 
         content = json.loads(resp.content)
@@ -683,7 +708,7 @@ def list_directory(ib_host, folder, api_token, proxies=None):
     return paths
 
 
-def wait_until_job_finishes(ib_host, job_id, job_type, api_token, proxies=None, context=None):
+def wait_until_job_finishes(ib_host, job_id, job_type, api_token, proxies=None, context=None, cert=None):
     """
     Wait until job finishes using job status API
 
@@ -694,13 +719,14 @@ def wait_until_job_finishes(ib_host, job_id, job_type, api_token, proxies=None, 
         api_token (str): API token
         proxies (dict): Proxy configuration
         context (str): Context header value (organization)
+        cert: mTLS certificate for the request
 
     Returns:
         bool: True if completed successfully
     """
     while True:
         job_status_response = check_job_status(
-            ib_host, job_id, job_type, api_token, proxies=proxies, context=context
+            ib_host, job_id, job_type, api_token, proxies=proxies, context=context, cert=cert
         )
         content = json.loads(job_status_response.content)
 
@@ -724,6 +750,7 @@ def delete_folder_or_file_from_ib(
     api_token=None,
     use_clients=False,
     proxies=None,
+    cert=None,
     **kwargs,
 ):
     """
@@ -734,6 +761,8 @@ def delete_folder_or_file_from_ib(
         ib_host (str): IB host url
         api_token (str): API token
         use_clients (bool): Use clients if in flow
+        proxies (dict): Proxy configuration
+        cert: mTLS certificate for the request
     """
     if use_clients:
         clients, err = kwargs["_FN_CONTEXT_KEY"].get_by_col_name("CLIENTS")
@@ -748,19 +777,19 @@ def delete_folder_or_file_from_ib(
         url = os.path.join(file_api_root, path_to_delete)
         headers = {"Authorization": f"Bearer {api_token}"}
         requests.delete(url, headers=headers, verify=False, proxies=proxies,
-                       cert=get_cert(source=True))
+                       cert=cert)
 
 
-def get_app_details(target_url, api_token, context, app_id, proxies=None):
-    """Get details of deployed app"""
-    url = f"{target_url}/api/v2/solutions/deployed/{app_id}"
-    return make_api_request(url, api_token, "get", context=context, proxies=proxies)
+def get_app_details(ib_host, api_token, context, app_id, proxies=None, cert=None):
+    """Get details of deployed app from source environment"""
+    url = f"{ib_host}/api/v2/solutions/deployed/{app_id}"
+    return make_api_request(url, api_token, "get", context=context, proxies=proxies, cert=cert)
 
 
-def get_deployment_details(target_url, api_token, context, deployment_id, proxies=None):
-    """Get details of deployment"""
-    url = f"{target_url}/api/v2/aihub/deployments/{deployment_id}"
-    return make_api_request(url, api_token, "get", context=context, proxies=proxies)
+def get_deployment_details(ib_host, api_token, context, deployment_id, proxies=None, cert=None):
+    """Get details of deployment from source environment"""
+    url = f"{ib_host}/api/v2/aihub/deployments/{deployment_id}"
+    return make_api_request(url, api_token, "get", context=context, proxies=proxies, cert=cert)
 
 
 def read_image(image_name="icon.png"):
@@ -788,6 +817,7 @@ def generate_flow(
     context,
     icon_path=None,
     proxies=None,
+    cert=None,
 ):
     """
     Generate flow from build project and create snapshot
@@ -798,6 +828,8 @@ def generate_flow(
         project_id (str): Project ID
         icon_path (str): Path to the icon file
         context (str): organization
+        proxies (dict): Proxy configuration
+        cert: mTLS certificate for the request
 
     Returns:
         dict: API response on success
@@ -834,7 +866,7 @@ def generate_flow(
     try:
         response = requests.post(
             url, headers=headers, data=json.dumps(payload), proxies=proxies,
-            cert=get_cert(source=True),
+            cert=cert,
         )
         response.raise_for_status()
         print(f"Request was successful. Response content: {response.content}")
@@ -844,7 +876,7 @@ def generate_flow(
         raise
 
 
-def delete_app(host, token, app_id, org, proxies=None):
+def delete_app(host, token, app_id, org, proxies=None, cert=None):
     """
     Delete an app from the target environment.
 
@@ -853,6 +885,8 @@ def delete_app(host, token, app_id, org, proxies=None):
         token: API token for authentication
         app_id: The ID of the app to delete
         org: The organization under which the app exists
+        proxies (dict): Proxy configuration
+        cert: mTLS certificate for the request
 
     Returns:
         Response object on success, None on failure
@@ -863,7 +897,7 @@ def delete_app(host, token, app_id, org, proxies=None):
 
     try:
         response = requests.delete(url, headers=headers, proxies=proxies,
-                                   cert=get_cert(source=True))
+                                   cert=cert)
         response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
         return response
     except requests.exceptions.RequestException as e:
@@ -871,7 +905,7 @@ def delete_app(host, token, app_id, org, proxies=None):
         raise
 
 
-def delete_build_project(host, token, project_id, proxies=None):
+def delete_build_project(host, token, project_id, proxies=None, cert=None):
     """
     Delete a build project from the target environment.
 
@@ -879,6 +913,8 @@ def delete_build_project(host, token, project_id, proxies=None):
         host (str): The target host URL
         token (str): API token for authentication
         project_id (str): The ID of the project to delete
+        proxies (dict): Proxy configuration
+        cert: mTLS certificate for the request
 
     Returns:
         Response object on success, None on failure
@@ -888,7 +924,7 @@ def delete_build_project(host, token, project_id, proxies=None):
 
     try:
         response = requests.delete(url, headers=headers, proxies=proxies,
-                                   cert=get_cert(source=True))
+                                   cert=cert)
         response.raise_for_status()
         return response
     except requests.exceptions.RequestException as e:
@@ -896,7 +932,7 @@ def delete_build_project(host, token, project_id, proxies=None):
         raise
 
 
-def get_published_app_id(ib_host, api_token, project_id, proxies=None):
+def get_published_app_id(ib_host, api_token, project_id, proxies=None, cert=None):
     """
     Get the app_id of the published build app.
 
@@ -904,6 +940,8 @@ def get_published_app_id(ib_host, api_token, project_id, proxies=None):
         ib_host (str): IB host URL
         api_token (str): API token for authentication
         project_id (str): Project ID
+        proxies (dict): Proxy configuration
+        cert: mTLS certificate for the request
 
     Returns:
         str: The app_id of the published build app
@@ -915,7 +953,7 @@ def get_published_app_id(ib_host, api_token, project_id, proxies=None):
 
     try:
         response = requests.get(url, headers=headers, verify=False, proxies=proxies,
-                               cert=get_cert(source=True))
+                               cert=cert)
         response.raise_for_status()
 
         data = response.json()
@@ -945,6 +983,7 @@ def trigger_regression_run(
     tags=[],
     pipeline_ids=[],
     proxies=None,
+    cert=None,
 ):
     """
     Trigger the regression run flow for a given project.
@@ -957,6 +996,8 @@ def trigger_regression_run(
         input_files_path (str): Path to the input files
         tags (list): List of tags
         pipeline_ids (list): List of pipeline IDs
+        proxies (dict): Proxy configuration
+        cert: mTLS certificate for the request
 
     Returns:
         str: Job ID on success, empty string on failure
@@ -983,7 +1024,7 @@ def trigger_regression_run(
     try:
         response = requests.post(
             url, headers=headers, data=json.dumps(payload), proxies=proxies,
-            cert=get_cert(source=True),
+            cert=cert,
         )
         response.raise_for_status()
         response_data = response.json()

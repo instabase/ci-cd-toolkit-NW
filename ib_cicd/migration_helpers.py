@@ -3,7 +3,6 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import requests
-from ib_cicd.certificates import get_cert
 from ib_cicd.ib_helpers import (
     create_folder_if_it_does_not_exists,
     get_file_metadata,
@@ -16,7 +15,7 @@ from ib_cicd.ib_helpers import (
 
 
 def download_solution(
-    ib_host, api_token, solution_path, write_to_local=True, unzip_solution=True, context=None
+    ib_host, api_token, solution_path, write_to_local=True, unzip_solution=True, context=None, cert=None
 ):
     """Downloads .ibsolution file content.
 
@@ -27,10 +26,11 @@ def download_solution(
         write_to_local: Write .ibsolution bytes to local file.
         unzip_solution: Unzip the solution after download.
         context: Context header value (organization).
+        cert: mTLS certificate for the request.
     Returns:
         Response object.
     """
-    resp = read_file_through_api(ib_host, api_token, solution_path, context=context)
+    resp = read_file_through_api(ib_host, api_token, solution_path, context=context, cert=cert)
 
     if write_to_local:
         with open("solution.ibflowbin", "wb") as fd:
@@ -48,7 +48,7 @@ def download_solution(
 
 
 def copy_package_from_marketplace(
-    ib_host, api_token, package_name, package_version, intermediate_path, context=None
+    ib_host, api_token, package_name, package_version, intermediate_path, context=None, cert=None
 ):
     """Copies ibsolution from marketplace to intermediate location and downloads it.
 
@@ -59,6 +59,7 @@ def copy_package_from_marketplace(
         package_version: Marketplace package version.
         intermediate_path: Path to copy ibsolution to.
         context: Context header value (organization).
+        cert: mTLS certificate for the request.
     Returns:
         Intermediate path of copied ibsolution.
     """
@@ -81,18 +82,18 @@ def copy_package_from_marketplace(
     headers = {"Authorization": f"Bearer {api_token}"}
     params = {"new_full_path": intermediate_path}
     resp = requests.post(copy_url, headers=headers, json=params, verify=False,
-                        cert=get_cert(source=True))
+                        cert=cert)
     resp.raise_for_status()
 
     content = resp.json()
     job_id = content["job_id"]
-    wait_until_job_finishes(ib_host, job_id, "job", api_token, context=context)
+    wait_until_job_finishes(ib_host, job_id, "job", api_token, context=context, cert=cert)
 
     return intermediate_path
 
 
 def check_if_file_exists_on_ib_env(
-    ib_host, api_token, file_path, use_clients=False, **kwargs
+    ib_host, api_token, file_path, use_clients=False, cert=None, **kwargs
 ):
     """Checks if a file exists on IB environment.
 
@@ -103,6 +104,7 @@ def check_if_file_exists_on_ib_env(
         api_token: IB API token.
         file_path: Path to file on IB.
         use_clients: Use clients if True.
+        cert: mTLS certificate for the request.
         kwargs: Optional kwargs.
     Returns:
         True if file exists, False otherwise.
@@ -114,7 +116,7 @@ def check_if_file_exists_on_ib_env(
         return clients.ibfile.is_file(file_path)
     else:
         # Check file metadata and determine if file already exists
-        metadata_response = get_file_metadata(ib_host, api_token, file_path)
+        metadata_response = get_file_metadata(ib_host, api_token, file_path, cert=cert)
         if metadata_response.status_code == 200:
             try:
                 content_length = int(metadata_response.headers["Content-Length"])
@@ -137,6 +139,8 @@ def copy_marketplace_package_and_move_to_new_env(
     download_folder,
     prod_upload_folder,
     use_clients=False,
+    source_cert=None,
+    target_cert=None,
     **kwargs,
 ):
     """Downloads ibsolution from dev marketplace and moves to prod env.
@@ -151,6 +155,8 @@ def copy_marketplace_package_and_move_to_new_env(
         download_folder: Intermediate folder on source env.
         prod_upload_folder: Folder on target env to upload to.
         use_clients: Use clients if True.
+        source_cert: mTLS certificate for source environment.
+        target_cert: mTLS certificate for target environment.
         kwargs: Optional kwargs.
     Returns:
         Tuple(Response object, str) - Upload chunks response and uploaded file path.
@@ -160,7 +166,7 @@ def copy_marketplace_package_and_move_to_new_env(
 
     # Check file metadata and determine if file already exists
     metadata_response = get_file_metadata(
-        target_ib_host, target_api_token, final_upload_path
+        target_ib_host, target_api_token, final_upload_path, cert=target_cert
     )
     if metadata_response.status_code == 200:
         try:
@@ -178,7 +184,7 @@ def copy_marketplace_package_and_move_to_new_env(
     # Check if file exists in temp download folder on source env, if it
     # doesn't exist then copy it over
     if not check_if_file_exists_on_ib_env(
-        source_ib_host, source_api_token, copy_to_path, use_clients, **kwargs
+        source_ib_host, source_api_token, copy_to_path, use_clients, cert=source_cert, **kwargs
     ):
         copy_package_from_marketplace(
             source_ib_host,
@@ -186,16 +192,17 @@ def copy_marketplace_package_and_move_to_new_env(
             package_name,
             package_version,
             copy_to_path,
+            cert=source_cert,
         )
 
     # Download file contents of ibsolution from source env download folder
     file_contents = read_file_content_from_ib(
-        source_ib_host, source_api_token, copy_to_path, use_clients, **kwargs
+        source_ib_host, source_api_token, copy_to_path, use_clients, cert=source_cert, **kwargs
     )
 
     # Upload file contents to target env upload folder
     resp = upload_chunks(
-        target_ib_host, final_upload_path, target_api_token, file_contents
+        target_ib_host, final_upload_path, target_api_token, file_contents, cert=target_cert
     )
     return resp, final_upload_path
 
@@ -209,6 +216,8 @@ def download_dependencies_from_dev_and_upload_to_prod(
     upload_folder_path,
     dependency_dict,
     use_clients=False,
+    source_cert=None,
+    target_cert=None,
     **kwargs,
 ):
     """Downloads dependencies from dev and uploads to prod env.
@@ -225,6 +234,8 @@ def download_dependencies_from_dev_and_upload_to_prod(
         upload_folder_path: Path for upload folder on target IB.
         dependency_dict: Dict of package names and versions.
         use_clients: Use clients if True.
+        source_cert: mTLS certificate for source environment.
+        target_cert: mTLS certificate for target environment.
         kwargs: Optional kwargs.
     Returns:
         List[str] - List of uploaded solution paths.
@@ -236,10 +247,10 @@ def download_dependencies_from_dev_and_upload_to_prod(
     target_upload_folder = os.path.join(upload_folder_path, "target_dependencies")
 
     create_folder_if_it_does_not_exists(
-        source_ib_host, source_api_token, source_download_folder
+        source_ib_host, source_api_token, source_download_folder, cert=source_cert
     )
     create_folder_if_it_does_not_exists(
-        target_ib_host, target_api_token, target_upload_folder
+        target_ib_host, target_api_token, target_upload_folder, cert=target_cert
     )
 
     # Copy all dependency packages from dev to prod
@@ -256,6 +267,8 @@ def download_dependencies_from_dev_and_upload_to_prod(
                 source_download_folder,
                 target_upload_folder,
                 use_clients=use_clients,
+                source_cert=source_cert,
+                target_cert=target_cert,
                 **kwargs,
             )
         except Exception as e:
@@ -272,16 +285,17 @@ def download_dependencies_from_dev_and_upload_to_prod(
     return upload_paths
 
 
-def publish_dependencies(uploaded_ibsolutions, ib_host, api_token):
+def publish_dependencies(uploaded_ibsolutions, ib_host, api_token, cert=None):
     """Publishes dependencies to marketplace.
 
     Args:
         uploaded_ibsolutions: List of ibsolution paths.
         ib_host: IB host URL.
         api_token: IB API token.
+        cert: mTLS certificate for the request.
     Returns:
         None
     """
     for ib_solution_path in uploaded_ibsolutions:
-        publish_resp = publish_to_marketplace(ib_host, api_token, ib_solution_path)
+        publish_resp = publish_to_marketplace(ib_host, api_token, ib_solution_path, cert=cert)
         print("Publish response for %s: %s", ib_solution_path, publish_resp)

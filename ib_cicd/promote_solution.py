@@ -5,6 +5,7 @@ import shutil
 import time
 
 
+from ib_cicd.certificates import get_cert
 from ib_cicd.ib_helpers import (
     check_job_status_build,
     compile_solution,
@@ -36,7 +37,7 @@ from ib_cicd.promote_build_solution import (
 
 
 def copy_solution_to_working_dir(
-    source_host, source_token, source_dir, rel_flow_path, new_solution_dir
+    source_host, source_token, source_dir, rel_flow_path, new_solution_dir, cert=None
 ):
     """Copy solution files to working directory.
 
@@ -46,17 +47,18 @@ def copy_solution_to_working_dir(
         source_dir: Source directory path
         rel_flow_path: Relative flow path
         new_solution_dir: New solution directory path
+        cert: mTLS certificate for the request
     """
     flow_path = os.path.join(source_dir, rel_flow_path)
     modules_path = os.path.join(source_dir, *rel_flow_path.split("/")[:-1], "modules")
     for path in [flow_path, modules_path]:
         new_path = path.replace(source_dir, new_solution_dir)
         copy_file_within_ib(
-            source_host, source_token, path, new_path, use_clients=False
+            source_host, source_token, path, new_path, use_clients=False, cert=cert
         )
 
 
-def upload_zip_to_instabase(target_path, target_host, target_token, solution_name):
+def upload_zip_to_instabase(target_path, target_host, target_token, solution_name, cert=None):
     """Create and upload solution zip archive to Instabase.
 
     Args:
@@ -64,6 +66,7 @@ def upload_zip_to_instabase(target_path, target_host, target_token, solution_nam
         target_host: Target Instabase host
         target_token: Target API token
         solution_name: Name of solution
+        cert: mTLS certificate for the request
 
     Returns:
         Upload response from API
@@ -76,7 +79,7 @@ def upload_zip_to_instabase(target_path, target_host, target_token, solution_nam
         path_to_upload = os.path.join(target_path, f"{solution_name}.zip")
 
         with open("solution.zip", "rb") as upload_data:
-            return upload_file(target_host, target_token, path_to_upload, upload_data)
+            return upload_file(target_host, target_token, path_to_upload, upload_data, cert=cert)
     except Exception as e:
         print(
             f"We couldn't upload your solution package. This could be because of internet connectivity issues or the system may be temporarily unavailable. Please check your internet connection and try again. If the problem continues, contact your IT support team. {e}"
@@ -96,7 +99,7 @@ def version_tuple(v):
     return tuple(map(int, (v.split("."))))
 
 
-def get_latest_binary_path(api_token, ib_host, solution_path):
+def get_latest_binary_path(api_token, ib_host, solution_path, cert=None):
     """Get path of latest versioned .ibflowbin file.
     If no versioned binary found, return path of simple named binary if exists.
 
@@ -104,6 +107,7 @@ def get_latest_binary_path(api_token, ib_host, solution_path):
         api_token: API token
         ib_host: Instabase host
         solution_path: Path to search for binaries
+        cert: mTLS certificate for the request
 
     Returns:
         Path to latest binary file or simple named binary file
@@ -111,7 +115,7 @@ def get_latest_binary_path(api_token, ib_host, solution_path):
     Raises:
         Exception: If no valid binaries found
     """
-    paths = list_directory(ib_host, solution_path, api_token)
+    paths = list_directory(ib_host, solution_path, api_token, cert=cert)
     paths = [p for p in paths if p.endswith(".ibflowbin")]
     if not paths:
         raise Exception(
@@ -226,6 +230,10 @@ def main(args=None):
             else None
         )
 
+        # Get mTLS certificates for source and target environments
+        source_cert = get_cert(source=True)
+        target_cert = get_cert(source=False)
+
         if args.compile_solution:
             copy_solution_to_working_dir(
                 SOURCE_IB_HOST,
@@ -233,6 +241,7 @@ def main(args=None):
                 SOURCE_SOLUTION_DIR,
                 REL_FLOW_PATH,
                 SOURCE_WORKING_DIR,
+                cert=source_cert,
             )
             time.sleep(3)
             compile_solution(
@@ -240,26 +249,28 @@ def main(args=None):
                 SOURCE_IB_API_TOKEN,
                 SOURCE_WORKING_DIR,
                 REL_FLOW_PATH,
+                cert=source_cert,
             )
             time.sleep(3)
 
         if args.download_solution:
             binary_path = get_latest_binary_path(
-                SOURCE_IB_API_TOKEN, SOURCE_IB_HOST, SOURCE_WORKING_DIR
+                SOURCE_IB_API_TOKEN, SOURCE_IB_HOST, SOURCE_WORKING_DIR, cert=source_cert
             )
-            download_solution(SOURCE_IB_HOST, SOURCE_IB_API_TOKEN, binary_path)
+            download_solution(SOURCE_IB_HOST, SOURCE_IB_API_TOKEN, binary_path, cert=source_cert)
             time.sleep(2)
             delete_folder_or_file_from_ib(
                 os.path.join(SOURCE_SOLUTION_DIR, "CICD"),
                 SOURCE_IB_HOST,
                 SOURCE_IB_API_TOKEN,
                 use_clients=False,
+                cert=source_cert,
             )
 
             if app_id:
                 print("Getting app details...")
                 response = get_app_details(
-                    SOURCE_IB_HOST, SOURCE_IB_API_TOKEN, SOURCE_ORG, app_id
+                    SOURCE_IB_HOST, SOURCE_IB_API_TOKEN, SOURCE_ORG, app_id, cert=source_cert
                 )
                 details = response.get("solution", {})
                 if not details:
@@ -278,6 +289,7 @@ def main(args=None):
                             SOURCE_IB_API_TOKEN,
                             details["solution_path"] + "/icon.png",
                             context=SOURCE_ORG,
+                            cert=source_cert,
                         ).content
                     except Exception as e:
                         print(f"Failed to download app icon: {e}")
@@ -289,7 +301,7 @@ def main(args=None):
             if deployment_id:
                 print("Getting deployment details...")
                 response = get_deployment_details(
-                    SOURCE_IB_HOST, SOURCE_IB_API_TOKEN, SOURCE_ORG, deployment_id
+                    SOURCE_IB_HOST, SOURCE_IB_API_TOKEN, SOURCE_ORG, deployment_id, cert=source_cert
                 )
                 save_to_file(response, "deployment_details.json")
 
@@ -301,11 +313,12 @@ def main(args=None):
                 SOURCE_WORKSPACE,
                 app_id,
                 config,
+                cert=source_cert,
             )
 
         if args.promote_solution_to_target:
             upload_zip_to_instabase(
-                TARGET_IB_PATH, TARGET_IB_HOST, TARGET_IB_API_TOKEN, FLOW_NAME
+                TARGET_IB_PATH, TARGET_IB_HOST, TARGET_IB_API_TOKEN, FLOW_NAME, cert=target_cert
             )
 
             # Upload the solution binary to target environment
@@ -318,15 +331,16 @@ def main(args=None):
                 TARGET_IB_API_TOKEN,
                 target_binary_path,
                 binary_content,
+                cert=target_cert,
             )
             time.sleep(2)
 
             # Unzip solution contents
             zip_path = os.path.join(TARGET_IB_PATH, f"{FLOW_NAME}.zip")
-            unzip_files(TARGET_IB_HOST, TARGET_IB_API_TOKEN, zip_path)
+            unzip_files(TARGET_IB_HOST, TARGET_IB_API_TOKEN, zip_path, cert=target_cert)
             time.sleep(3)
             delete_folder_or_file_from_ib(
-                zip_path, TARGET_IB_HOST, TARGET_IB_API_TOKEN, use_clients=False
+                zip_path, TARGET_IB_HOST, TARGET_IB_API_TOKEN, use_clients=False, cert=target_cert
             )
 
         if args.upload_dependencies:
@@ -341,9 +355,11 @@ def main(args=None):
                 SOURCE_WORKING_DIR,
                 TARGET_IB_PATH,
                 requirements_dict,
+                source_cert=source_cert,
+                target_cert=target_cert,
             )
             publish_dependencies(
-                uploaded_ibsolutions, TARGET_IB_HOST, TARGET_IB_API_TOKEN
+                uploaded_ibsolutions, TARGET_IB_HOST, TARGET_IB_API_TOKEN, cert=target_cert
             )
 
         if args.publish_advanced_app:
@@ -361,7 +377,7 @@ def main(args=None):
                 print("Uploading app icon from local file...")
                 with open("icon.png", "rb") as f:
                     icon_data = f.read()
-                upload_file(TARGET_IB_HOST, TARGET_IB_API_TOKEN, icon_path, icon_data)
+                upload_file(TARGET_IB_HOST, TARGET_IB_API_TOKEN, icon_path, icon_data, cert=target_cert)
             else:
                 print("Local icon file not found.")
                 raise FileNotFoundError("Icon file not found.")
@@ -371,6 +387,7 @@ def main(args=None):
                 TARGET_IB_API_TOKEN,
                 TARGET_IB_HOST,
                 os.path.join(TARGET_IB_PATH, FLOW_NAME),
+                cert=target_cert,
             )
 
             payload = {
@@ -387,10 +404,10 @@ def main(args=None):
             }
 
             response = publish_advanced_app(
-                TARGET_IB_HOST, TARGET_IB_API_TOKEN, payload, TARGET_ORG
+                TARGET_IB_HOST, TARGET_IB_API_TOKEN, payload, TARGET_ORG, cert=target_cert
             )
             new_app_id = check_job_status_build(
-                TARGET_IB_HOST, TARGET_IB_API_TOKEN, response["job_id"]
+                TARGET_IB_HOST, TARGET_IB_API_TOKEN, response["job_id"], cert=target_cert
             )
             config["target"]["app_id"] = new_app_id
             save_to_file(config, "config.json")
@@ -418,14 +435,14 @@ def main(args=None):
                 "human_review_mode": details["human_review_mode"],
                 "human_review_level": details["human_review_level"],
             }
-            create_deployment(TARGET_IB_HOST, TARGET_IB_API_TOKEN, payload, TARGET_ORG)
+            create_deployment(TARGET_IB_HOST, TARGET_IB_API_TOKEN, payload, TARGET_ORG, cert=target_cert)
             print("Great news! Your deployment has been created successfully.")
 
         if args.delete_app:
             if not new_app_id:
                 raise Exception("App ID not found for deletion.")
 
-            delete_app(TARGET_IB_HOST, TARGET_IB_API_TOKEN, new_app_id, TARGET_ORG)
+            delete_app(TARGET_IB_HOST, TARGET_IB_API_TOKEN, new_app_id, TARGET_ORG, cert=target_cert)
             print("App deleted successfully.")
 
     except Exception as e:

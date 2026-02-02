@@ -4,10 +4,8 @@ import time
 from uuid import uuid4
 import copy
 
-from ib_cicd.certificates import get_cert
 
-
-def create_build_project(project_name, token, target_url, org, workspace, proxies=None):
+def create_build_project(project_name, token, target_url, org, workspace, proxies=None, cert=None):
     """Creates a build project in the target environment"""
     url = f"{target_url}/api/v2/aihub/build/projects"
     headers = {"Authorization": f"Bearer {token}", "Ib-Context": org}
@@ -34,7 +32,7 @@ def create_build_project(project_name, token, target_url, org, workspace, proxie
     }
 
     response = requests.post(url=url, headers=headers, json=data, proxies=proxies,
-                             cert=get_cert(source=False))
+                             cert=cert)
     response.raise_for_status()
     return response.json()
 
@@ -50,7 +48,7 @@ def clean_function_data(function_data):
         function_data.pop(field, None)
 
 
-def get_settings(project_id, token, host_url, proxies=None, context=None, is_source=True):
+def get_settings(project_id, token, host_url, proxies=None, context=None, cert=None):
     """
     Return the schema response
         Args:
@@ -58,7 +56,7 @@ def get_settings(project_id, token, host_url, proxies=None, context=None, is_sou
             token: auth token
             host_url: the environment project is in
             context: organization context for the Ib-Context header
-            is_source: if True, use source certs; if False, use target certs
+            cert: mTLS certificate for the request
         Return:
             ocr settings response
     """
@@ -70,12 +68,12 @@ def get_settings(project_id, token, host_url, proxies=None, context=None, is_sou
     if context:
         headers["Ib-Context"] = context
     response = requests.get(url=get_ocr_url, headers=headers, proxies=proxies,
-                           cert=get_cert(source=is_source))
+                           cert=cert)
     response.raise_for_status()  # This will raise an error
     return response.json()
 
 
-def post_settings(project_id, token, host_url, data, proxies=None):
+def post_settings(project_id, token, host_url, data, proxies=None, cert=None):
     """
     Return the schema response
         Args:
@@ -83,6 +81,7 @@ def post_settings(project_id, token, host_url, data, proxies=None):
             token: auth token
             host_url: the environment project is in
             data: target ocr settings to be added
+            cert: mTLS certificate for the request
         Return:
             status response
     """
@@ -90,7 +89,7 @@ def post_settings(project_id, token, host_url, data, proxies=None):
     headers = {"Authorization": f"Bearer {token}"}
     response = requests.patch(
         url=get_ocr_url, headers=headers, data=data, proxies=proxies,
-        cert=get_cert(source=False),
+        cert=cert,
     )
     response.raise_for_status()  # This will raise an error
     return response.text
@@ -109,7 +108,7 @@ def modify_settings(project_id, response):
 #### Function for UDFs ####
 
 
-def get_udfs(project_id, token, host_url, proxies=None, context=None, is_source=True):
+def get_udfs(project_id, token, host_url, proxies=None, context=None, cert=None):
     """
     Return the udfs response
         Args:
@@ -117,7 +116,7 @@ def get_udfs(project_id, token, host_url, proxies=None, context=None, is_source=
             token: auth token
             host_url: the environment project is in
             context: organization context for the Ib-Context header
-            is_source: if True, use source certs; if False, use target certs
+            cert: mTLS certificate for the request
         Return:
             schema response
     """
@@ -127,12 +126,12 @@ def get_udfs(project_id, token, host_url, proxies=None, context=None, is_source=
     if context:
         headers["Ib-Context"] = context
     response = requests.get(url=get_udfs_url, headers=headers, proxies=proxies,
-                           cert=get_cert(source=is_source))
+                           cert=cert)
     response.raise_for_status()  # This will raise an error
     return response.json()
 
 
-def post_udf(project_id, token, target_url, data, proxies=None):
+def post_udf(project_id, token, target_url, data, proxies=None, cert=None):
     """
     Return the json response
         Args:
@@ -140,6 +139,7 @@ def post_udf(project_id, token, target_url, data, proxies=None):
             token: auth token
             host_url: the environment project is in
             data: target udfs to be added
+            cert: mTLS certificate for the request
         Return:
             json response
     """
@@ -147,7 +147,7 @@ def post_udf(project_id, token, target_url, data, proxies=None):
     headers = {"Authorization": f"Bearer {token}"}
     response = requests.post(
         url=post_udfs_url, headers=headers, json=data, proxies=proxies,
-        cert=get_cert(source=False),
+        cert=cert,
     )
     response.raise_for_status()
     return response.json()
@@ -189,7 +189,7 @@ def generate_id():
     return uuid[:21]
 
 
-def get_schema(project_id, token, host_url, proxies=None, context=None, is_source=True):
+def get_schema(project_id, token, host_url, proxies=None, context=None, cert=None):
     """
     Return the schema response
         Args:
@@ -197,7 +197,7 @@ def get_schema(project_id, token, host_url, proxies=None, context=None, is_sourc
             token: auth token
             host_url: the environment project is in
             context: organization context for the Ib-Context header
-            is_source: if True, use source certs; if False, use target certs
+            cert: mTLS certificate for the request
         Return:
             schema response
     """
@@ -207,12 +207,12 @@ def get_schema(project_id, token, host_url, proxies=None, context=None, is_sourc
     if context:
         headers["Ib-Context"] = context
     response = requests.get(url=get_schema_url, headers=headers, proxies=proxies,
-                           cert=get_cert(source=is_source))
+                           cert=cert)
     response.raise_for_status()  # This will raise an error
     return response.json()
 
 
-def post_schema(project_id, token, target_url, data, proxies=None):
+def post_schema(project_id, token, target_url, data, proxies=None, cert=None):
     """
     Return the json response
         Args:
@@ -220,6 +220,7 @@ def post_schema(project_id, token, target_url, data, proxies=None):
             token: auth token
             host_url: the environment project is in
             data: target schema to be added
+            cert: mTLS certificate for the request
         Return:
             json response
     """
@@ -227,7 +228,7 @@ def post_schema(project_id, token, target_url, data, proxies=None):
     headers = {"Authorization": f"Bearer {token}"}
     response = requests.post(
         url=post_schema_url, headers=headers, json=data, proxies=proxies,
-        cert=get_cert(source=False),
+        cert=cert,
     )
     response.raise_for_status()
     return response.json()
@@ -243,42 +244,43 @@ def get_item_ids(schema):
     return items
 
 
-def run_prompt_udf(project_id, token, target_url, validation_id, proxies=None):
+def run_prompt_udf(project_id, token, target_url, validation_id, proxies=None, cert=None):
     """Generates code for a prompt UDF"""
     url = f"{target_url}/api/v2/aihub/build/projects/{project_id}/validations/{validation_id}/examples"
     headers = {"Authorization": f"Bearer {token}"}
     response = requests.put(url=url, headers=headers, proxies=proxies,
-                           cert=get_cert(source=False))
+                           cert=cert)
     response.raise_for_status()
     time.sleep(10)
 
     url = f"{target_url}/api/v2/aihub/build/projects/{project_id}/validations/{validation_id}/code-generation"
     headers = {"Authorization": f"Bearer {token}"}
     response = requests.put(url=url, headers=headers, proxies=proxies,
-                           cert=get_cert(source=False))
+                           cert=cert)
     response.raise_for_status()
     time.sleep(10)
     return response.json()
 
 
-def modify_udf_lines(field_schema, project_id, token, target_url, udfs, proxies=None):
+def modify_udf_lines(field_schema, project_id, token, target_url, udfs, proxies=None, cert=None):
     for line in field_schema["lines"]:
         if line["line_type"] == "UDF":
             function_id = line["function_id"]
             result = post_udf(
-                project_id, token, target_url, udfs[str(function_id)], proxies=proxies
+                project_id, token, target_url, udfs[str(function_id)], proxies=proxies, cert=cert
             )
             line["function_id"] = result["udf_id"]
 
 
 def modify_schema(
-    target_schema, source_schema, project_id, token, target_url, udfs, proxies=None
+    target_schema, source_schema, project_id, token, target_url, udfs, proxies=None, cert=None
 ):
     """
     Function to create the payload
         Args:
             target_schema: Outdated
             source_schema: Latest
+            cert: mTLS certificate for the request
         Returns:
             Payload Dictionary
     """
@@ -330,6 +332,7 @@ def modify_schema(
                         target_url,
                         udfs,
                         proxies=proxies,
+                        cert=cert,
                     )
                     fields[target_field_id] = field_schema
                 else:
@@ -340,6 +343,7 @@ def modify_schema(
                         target_url,
                         udfs,
                         proxies=proxies,
+                        cert=cert,
                     )
                     field_schema["uuid"] = generate_id()
                     new_fields.append(field_schema)
@@ -359,7 +363,7 @@ def modify_schema(
 
                 field_schema = source_field_schema.copy()
                 modify_udf_lines(
-                    field_schema, project_id, token, target_url, udfs, proxies=proxies
+                    field_schema, project_id, token, target_url, udfs, proxies=proxies, cert=cert
                 )
                 field_schema["uuid"] = generate_id()
                 new_fields.append(field_schema)
@@ -373,7 +377,7 @@ def modify_schema(
 #### Functions for validations ####
 
 
-def get_validations(project_id, token, host_url, proxies=None, context=None, is_source=True):
+def get_validations(project_id, token, host_url, proxies=None, context=None, cert=None):
     """
     Return the validations response
         Args:
@@ -381,7 +385,7 @@ def get_validations(project_id, token, host_url, proxies=None, context=None, is_
             token: auth token
             host_url: the environment project is in
             context: organization context for the Ib-Context header
-            is_source: if True, use source certs; if False, use target certs
+            cert: mTLS certificate for the request
         Return:
             schema response
     """
@@ -393,12 +397,12 @@ def get_validations(project_id, token, host_url, proxies=None, context=None, is_
     if context:
         headers["Ib-Context"] = context
     response = requests.get(url=get_validations_url, headers=headers, proxies=proxies,
-                           cert=get_cert(source=is_source))
+                           cert=cert)
     response.raise_for_status()  # This will raise an error
     return response.json()
 
 
-def post_validations(project_id, token, target_url, data, proxies=None):
+def post_validations(project_id, token, target_url, data, proxies=None, cert=None):
     """
     Return the json response
         Args:
@@ -406,6 +410,7 @@ def post_validations(project_id, token, target_url, data, proxies=None):
             token: auth token
             host_url: the environment project is in
             data: target validations to be added
+            cert: mTLS certificate for the request
         Return:
             json response
     """
@@ -413,13 +418,13 @@ def post_validations(project_id, token, target_url, data, proxies=None):
     headers = {"Authorization": f"Bearer {token}"}
     response = requests.post(
         url=post_udfs_url, headers=headers, json=data, proxies=proxies,
-        cert=get_cert(source=False),
+        cert=cert,
     )
     response.raise_for_status()
     return response.json()
 
 
-def delete_validations(project_id, token, target_url, id, proxies=None):
+def delete_validations(project_id, token, target_url, id, proxies=None, cert=None):
     """
     Delete a particular validation
     """
@@ -428,7 +433,7 @@ def delete_validations(project_id, token, target_url, id, proxies=None):
     )
     headers = {"Authorization": f"Bearer {token}"}
     response = requests.delete(url=delete_url, headers=headers, proxies=proxies,
-                              cert=get_cert(source=False))
+                              cert=cert)
     response.raise_for_status()
     return response
 
@@ -491,12 +496,14 @@ def modify_validations(
     udfs,
     mappings,
     proxies=None,
+    cert=None,
 ):
     """
     Function to create the payload for validations
         Args:
             target_schema: That needs to be updated
             source_schema: the source we are copying from
+            cert: mTLS certificate for the request
         Returns:
             Payload Dictionary
     """
@@ -511,7 +518,7 @@ def modify_validations(
     for rule in source_validations["rules"]:
         if rule.get("name") in names.keys():
             response = delete_validations(
-                project_id, token, target_url, names[rule.get("name")], proxies=proxies
+                project_id, token, target_url, names[rule.get("name")], proxies=proxies, cert=cert
             )
 
         payload = {
@@ -538,14 +545,14 @@ def modify_validations(
         if rule.get("type") == "UDF" or rule.get("type") == "PROMPT_UDF":
             id = rule["params"]["udf_id"]
             response = post_udf(
-                project_id, token, target_url, udfs[str(id)], proxies=proxies
+                project_id, token, target_url, udfs[str(id)], proxies=proxies, cert=cert
             )
             new_id = response["udf_id"]
 
             headers = {"Authorization": f"Bearer {token}"}
             examples_url = f"{target_url}/api/v2/aihub/build/projects/{project_id}/validations/{new_id}/examples"
             resp = requests.put(examples_url, headers=headers, proxies=proxies,
-                               cert=get_cert(source=False))
+                               cert=cert)
             print(f"Run Examples {new_id}: {resp.text}")
 
             payload["params"]["udf_id"] = int(new_id)
