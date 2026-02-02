@@ -50,7 +50,7 @@ def clean_function_data(function_data):
         function_data.pop(field, None)
 
 
-def get_settings(project_id, token, host_url, proxies=None, context=None):
+def get_settings(project_id, token, host_url, proxies=None, context=None, is_source=True):
     """
     Return the schema response
         Args:
@@ -58,6 +58,7 @@ def get_settings(project_id, token, host_url, proxies=None, context=None):
             token: auth token
             host_url: the environment project is in
             context: organization context for the Ib-Context header
+            is_source: if True, use source certs; if False, use target certs
         Return:
             ocr settings response
     """
@@ -69,7 +70,7 @@ def get_settings(project_id, token, host_url, proxies=None, context=None):
     if context:
         headers["Ib-Context"] = context
     response = requests.get(url=get_ocr_url, headers=headers, proxies=proxies,
-                           cert=get_cert(source=True))
+                           cert=get_cert(source=is_source))
     response.raise_for_status()  # This will raise an error
     return response.json()
 
@@ -108,7 +109,7 @@ def modify_settings(project_id, response):
 #### Function for UDFs ####
 
 
-def get_udfs(project_id, token, host_url, proxies=None, context=None):
+def get_udfs(project_id, token, host_url, proxies=None, context=None, is_source=True):
     """
     Return the udfs response
         Args:
@@ -116,6 +117,7 @@ def get_udfs(project_id, token, host_url, proxies=None, context=None):
             token: auth token
             host_url: the environment project is in
             context: organization context for the Ib-Context header
+            is_source: if True, use source certs; if False, use target certs
         Return:
             schema response
     """
@@ -125,7 +127,7 @@ def get_udfs(project_id, token, host_url, proxies=None, context=None):
     if context:
         headers["Ib-Context"] = context
     response = requests.get(url=get_udfs_url, headers=headers, proxies=proxies,
-                           cert=get_cert(source=True))
+                           cert=get_cert(source=is_source))
     response.raise_for_status()  # This will raise an error
     return response.json()
 
@@ -187,7 +189,7 @@ def generate_id():
     return uuid[:21]
 
 
-def get_schema(project_id, token, host_url, proxies=None, context=None):
+def get_schema(project_id, token, host_url, proxies=None, context=None, is_source=True):
     """
     Return the schema response
         Args:
@@ -195,6 +197,7 @@ def get_schema(project_id, token, host_url, proxies=None, context=None):
             token: auth token
             host_url: the environment project is in
             context: organization context for the Ib-Context header
+            is_source: if True, use source certs; if False, use target certs
         Return:
             schema response
     """
@@ -204,7 +207,7 @@ def get_schema(project_id, token, host_url, proxies=None, context=None):
     if context:
         headers["Ib-Context"] = context
     response = requests.get(url=get_schema_url, headers=headers, proxies=proxies,
-                           cert=get_cert(source=True))
+                           cert=get_cert(source=is_source))
     response.raise_for_status()  # This will raise an error
     return response.json()
 
@@ -370,7 +373,7 @@ def modify_schema(
 #### Functions for validations ####
 
 
-def get_validations(project_id, token, host_url, proxies=None, context=None):
+def get_validations(project_id, token, host_url, proxies=None, context=None, is_source=True):
     """
     Return the validations response
         Args:
@@ -378,6 +381,7 @@ def get_validations(project_id, token, host_url, proxies=None, context=None):
             token: auth token
             host_url: the environment project is in
             context: organization context for the Ib-Context header
+            is_source: if True, use source certs; if False, use target certs
         Return:
             schema response
     """
@@ -389,7 +393,7 @@ def get_validations(project_id, token, host_url, proxies=None, context=None):
     if context:
         headers["Ib-Context"] = context
     response = requests.get(url=get_validations_url, headers=headers, proxies=proxies,
-                           cert=get_cert(source=True))
+                           cert=get_cert(source=is_source))
     response.raise_for_status()  # This will raise an error
     return response.json()
 

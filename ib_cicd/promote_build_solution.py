@@ -122,22 +122,22 @@ def fetch_details(config, proxies=None, context=None):
 
     try:
         projects = get_settings(
-            source_project_id, source_token, source_host_url, proxies=proxies, context=context
+            source_project_id, source_token, source_host_url, proxies=proxies, context=context, is_source=True
         )
         save_to_file(projects, "fetched_settings.json")
 
         udfs = get_udfs(
-            source_project_id, source_token, source_host_url, proxies=proxies, context=context
+            source_project_id, source_token, source_host_url, proxies=proxies, context=context, is_source=True
         )
         save_to_file(udfs, "fetched_udfs.json")
 
         schema = get_schema(
-            source_project_id, source_token, source_host_url, proxies=proxies, context=context
+            source_project_id, source_token, source_host_url, proxies=proxies, context=context, is_source=True
         )
         save_to_file(schema, "fetched_schema.json")
 
         validations = get_validations(
-            source_project_id, source_token, source_host_url, proxies=proxies, context=context
+            source_project_id, source_token, source_host_url, proxies=proxies, context=context, is_source=True
         )
         save_to_file(validations, "fetched_validations.json")
 
@@ -203,7 +203,7 @@ def rebuild_project(config, proxies=None):
 
         sanitized_udfs = sanitize_udf_payload(udfs)
         target_schema = get_schema(
-            target_project_id, target_token, target_host_url, proxies=proxies
+            target_project_id, target_token, target_host_url, proxies=proxies, is_source=False
         )
         modified_schema = modify_schema(
             target_schema,
@@ -224,7 +224,7 @@ def rebuild_project(config, proxies=None):
         mappings = map_field_ids(schema, result)
         modified_validations = modify_validations(
             get_validations(
-                target_project_id, target_token, target_host_url, proxies=proxies
+                target_project_id, target_token, target_host_url, proxies=proxies, is_source=False
             ),
             validations,
             target_project_id,
@@ -740,6 +740,11 @@ def main(args=None):
                 "ibflow_path": solution_path,
                 "should_copy_snapshot": True,
             }
+            # If target app_id exists, include it to republish a new version instead of creating a new app
+            existing_app_id = config["target"].get("app_id")
+            if existing_app_id:
+                payload["app_id"] = existing_app_id
+                print(f"Republishing new version to existing app: {existing_app_id}")
             print(payload)
             # Publish the build app
             response = publish_build_app(
