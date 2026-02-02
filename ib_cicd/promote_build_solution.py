@@ -432,7 +432,7 @@ def run_regression_tests(
         proxies=proxies,
     )
     wait_until_job_finishes(
-        source_host_url, response, "async", source_token, proxies=proxies
+        source_host_url, response, "async", source_token, proxies=proxies, context=source_org
     )
     test_summary_path = flow_config["TESTS_SUMMARY_PATH"]
     print("Downloading test summary...")
@@ -549,7 +549,7 @@ def main(args=None):
             print(response)
             job_id = response["job_id"]
             response = wait_until_job_finishes(
-                source_host_url, job_id, "async", source_token, proxies=proxy
+                source_host_url, job_id, "async", source_token, proxies=proxy, context=source_org
             )
             print(response)
             solution_path = response["results"][0]["flow_path"]
@@ -622,6 +622,7 @@ def main(args=None):
                     "async",
                     source_token,
                     proxies=proxy,
+                    context=source_org,
                 )
                 print(response)
                 new_app_id = get_published_app_id(
@@ -713,7 +714,7 @@ def main(args=None):
             print(response)
             job_id = response["job_id"]
             response = wait_until_job_finishes(
-                target_host_url, job_id, "async", target_token, proxies=proxy
+                target_host_url, job_id, "async", target_token, proxies=proxy, context=target_org
             )
             print(response)
             time.sleep(3)
@@ -746,6 +747,7 @@ def main(args=None):
                 "async",
                 target_token,
                 proxies=proxy,
+                context=target_org,
             )
             print(response)
             new_app_id = get_published_app_id(

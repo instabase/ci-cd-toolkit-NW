@@ -47,7 +47,7 @@ def download_solution(
 
 
 def copy_package_from_marketplace(
-    ib_host, api_token, package_name, package_version, intermediate_path
+    ib_host, api_token, package_name, package_version, intermediate_path, context=None
 ):
     """Copies ibsolution from marketplace to intermediate location and downloads it.
 
@@ -57,6 +57,7 @@ def copy_package_from_marketplace(
         package_name: Marketplace package name.
         package_version: Marketplace package version.
         intermediate_path: Path to copy ibsolution to.
+        context: Context header value (organization).
     Returns:
         Intermediate path of copied ibsolution.
     """
@@ -84,7 +85,7 @@ def copy_package_from_marketplace(
 
     content = resp.json()
     job_id = content["job_id"]
-    wait_until_job_finishes(ib_host, job_id, "job", api_token)
+    wait_until_job_finishes(ib_host, job_id, "job", api_token, context=context)
 
     return intermediate_path
 

@@ -321,7 +321,7 @@ def create_deployment(
         )
 
 
-def check_job_status(ib_host, job_id, job_type, api_token, proxies=None):
+def check_job_status(ib_host, job_id, job_type, api_token, proxies=None, context=None):
     """
     Check status of a job using Job Status API
 
@@ -330,12 +330,16 @@ def check_job_status(ib_host, job_id, job_type, api_token, proxies=None):
         job_id (str): Job ID to check
         job_type (str): Job type [flow, refiner, job, async, group]
         api_token (str): API token
+        proxies (dict): Proxy configuration
+        context (str): Context header value (organization)
 
     Returns:
         Response object
     """
     url = f"{ib_host}/api/v1/jobs/status?job_id={job_id}&type={job_type}"
     headers = {"Authorization": f"Bearer {api_token}"}
+    if context:
+        headers["Ib-Context"] = context
 
     resp = requests.get(url, headers=headers, verify=False, proxies=proxies,
                         cert=get_cert(source=True))
@@ -673,7 +677,7 @@ def list_directory(ib_host, folder, api_token, proxies=None):
     return paths
 
 
-def wait_until_job_finishes(ib_host, job_id, job_type, api_token, proxies=None):
+def wait_until_job_finishes(ib_host, job_id, job_type, api_token, proxies=None, context=None):
     """
     Wait until job finishes using job status API
 
@@ -682,13 +686,15 @@ def wait_until_job_finishes(ib_host, job_id, job_type, api_token, proxies=None):
         job_id (str): Job ID
         job_type (str): Job type
         api_token (str): API token
+        proxies (dict): Proxy configuration
+        context (str): Context header value (organization)
 
     Returns:
         bool: True if completed successfully
     """
     while True:
         job_status_response = check_job_status(
-            ib_host, job_id, job_type, api_token, proxies=proxies
+            ib_host, job_id, job_type, api_token, proxies=proxies, context=context
         )
         content = json.loads(job_status_response.content)
 
